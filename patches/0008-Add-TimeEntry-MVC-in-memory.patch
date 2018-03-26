@@ -1,0 +1,213 @@
+From 89acf74f8ee8a0df217724d6cfcdea18773551f0 Mon Sep 17 00:00:00 2001
+From: Alex Sartan <asartan@pivotal.io>
+Date: Tue, 30 Jan 2018 13:37:42 -0700
+Subject: [PATCH 08/13] Add TimeEntry MVC in memory
+
+---
+ src/PalTracker/ITimeEntryRepository.cs        | 14 +++++++
+ src/PalTracker/InMemoryTimeEntryRepository.cs | 41 ++++++++++++++++++++
+ src/PalTracker/Startup.cs                     |  2 +
+ src/PalTracker/TimeEntry.cs                   | 31 +++++++++++++++
+ src/PalTracker/TimeEntryController.cs         | 54 +++++++++++++++++++++++++++
+ test/PalTrackerTests/PalTrackerTests.csproj   |  1 +
+ 6 files changed, 143 insertions(+)
+ create mode 100644 src/PalTracker/ITimeEntryRepository.cs
+ create mode 100644 src/PalTracker/InMemoryTimeEntryRepository.cs
+ create mode 100644 src/PalTracker/TimeEntry.cs
+ create mode 100644 src/PalTracker/TimeEntryController.cs
+
+diff --git a/src/PalTracker/ITimeEntryRepository.cs b/src/PalTracker/ITimeEntryRepository.cs
+new file mode 100644
+index 0000000..07da807
+--- /dev/null
++++ b/src/PalTracker/ITimeEntryRepository.cs
+@@ -0,0 +1,14 @@
++﻿using System.Collections.Generic;
++
++namespace PalTracker
++{
++    public interface ITimeEntryRepository
++    {
++        TimeEntry Create(TimeEntry timeEntry);
++        TimeEntry Find(long id);
++        bool Contains(long id);
++        IEnumerable<TimeEntry> List();
++        TimeEntry Update(long id, TimeEntry timeEntry);
++        void Delete(long id);
++    }
++}
+\ No newline at end of file
+diff --git a/src/PalTracker/InMemoryTimeEntryRepository.cs b/src/PalTracker/InMemoryTimeEntryRepository.cs
+new file mode 100644
+index 0000000..724806c
+--- /dev/null
++++ b/src/PalTracker/InMemoryTimeEntryRepository.cs
+@@ -0,0 +1,41 @@
++﻿using System.Collections.Generic;
++using System.Linq;
++
++namespace PalTracker
++{
++    public class InMemoryTimeEntryRepository : ITimeEntryRepository
++    {
++        private readonly IDictionary<long, TimeEntry> _timeEntries = new Dictionary<long, TimeEntry>();
++
++        public TimeEntry Create(TimeEntry timeEntry)
++        {
++            var id = _timeEntries.Count + 1;
++
++            timeEntry.Id = id;
++
++            _timeEntries.Add(id, timeEntry);
++
++            return timeEntry;
++        }
++
++        public TimeEntry Find(long id) => _timeEntries[id];
++
++        public bool Contains(long id) => _timeEntries.ContainsKey(id);
++
++        public IEnumerable<TimeEntry> List() => _timeEntries.Values.ToList();
++
++        public TimeEntry Update(long id, TimeEntry timeEntry)
++        {
++            timeEntry.Id = id;
++
++            _timeEntries[id] = timeEntry;
++
++            return timeEntry;
++        }
++
++        public void Delete(long id)
++        {
++            _timeEntries.Remove(id);
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/src/PalTracker/Startup.cs b/src/PalTracker/Startup.cs
+index 049548b..8a78925 100644
+--- a/src/PalTracker/Startup.cs
++++ b/src/PalTracker/Startup.cs
+@@ -35,6 +35,8 @@ namespace PalTracker
+                 Configuration.GetValue<string>("CF_INSTANCE_INDEX"),
+                 Configuration.GetValue<string>("CF_INSTANCE_ADDR")
+             ));
++
++            services.AddSingleton<ITimeEntryRepository, InMemoryTimeEntryRepository>();
+         }
+ 
+         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+diff --git a/src/PalTracker/TimeEntry.cs b/src/PalTracker/TimeEntry.cs
+new file mode 100644
+index 0000000..6407fbc
+--- /dev/null
++++ b/src/PalTracker/TimeEntry.cs
+@@ -0,0 +1,31 @@
++﻿using System;
++
++namespace PalTracker
++{
++    public struct TimeEntry
++    {
++        public long? Id { get; set; }
++        public long ProjectId { get; set; }
++        public long UserId { get; set; }
++        public DateTime Date { get; set; }
++        public int Hours { get; set; }
++
++        public TimeEntry(long id, long projectId, long userId, DateTime date, int hours)
++        {
++            Id = id;
++            ProjectId = projectId;
++            UserId = userId;
++            Date = date;
++            Hours = hours;
++        }
++
++        public TimeEntry(long projectId, long userId, DateTime date, int hours)
++        {
++            Id = null;
++            ProjectId = projectId;
++            UserId = userId;
++            Date = date;
++            Hours = hours;
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/src/PalTracker/TimeEntryController.cs b/src/PalTracker/TimeEntryController.cs
+new file mode 100644
+index 0000000..e26d222
+--- /dev/null
++++ b/src/PalTracker/TimeEntryController.cs
+@@ -0,0 +1,54 @@
++﻿using Microsoft.AspNetCore.Mvc;
++
++namespace PalTracker
++{
++    [Route("/time-entries")]
++    public class TimeEntryController : Controller
++    {
++        private readonly ITimeEntryRepository _repository;
++
++        public TimeEntryController(ITimeEntryRepository repository)
++        {
++            _repository = repository;
++        }
++
++        [HttpPost]
++        public IActionResult Create([FromBody] TimeEntry timeEntry)
++        {
++            var createdTimeEntry = _repository.Create(timeEntry);
++
++            return CreatedAtRoute("GetTimeEntry", new {id = createdTimeEntry.Id}, createdTimeEntry);
++        }
++
++        [HttpGet("{id}", Name = "GetTimeEntry")]
++        public IActionResult Read(long id)
++        {
++            return _repository.Contains(id) ? (IActionResult) Ok(_repository.Find(id)) : NotFound();
++        }
++
++        [HttpGet]
++        public IActionResult List()
++        {
++            return Ok(_repository.List());
++        }
++
++        [HttpPut("{id}")]
++        public IActionResult Update(long id, [FromBody] TimeEntry timeEntry)
++        {
++            return _repository.Contains(id) ? (IActionResult) Ok(_repository.Update(id, timeEntry)) : NotFound();
++        }
++
++        [HttpDelete("{id}")]
++        public IActionResult Delete(long id)
++        {
++            if (!_repository.Contains(id))
++            {
++                return NotFound();
++            }
++
++            _repository.Delete(id);
++
++            return NoContent();
++        }
++    }
++}
+diff --git a/test/PalTrackerTests/PalTrackerTests.csproj b/test/PalTrackerTests/PalTrackerTests.csproj
+index 36d99a1..a66a12d 100644
+--- a/test/PalTrackerTests/PalTrackerTests.csproj
++++ b/test/PalTrackerTests/PalTrackerTests.csproj
+@@ -6,6 +6,7 @@
+   <ItemGroup>
+     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="2.0.1" />
+     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.3.0-preview-20170628-02" />
++    <PackageReference Include="Moq" Version="4.7.63" />
+     <PackageReference Include="xunit" Version="2.2.0" />
+     <PackageReference Include="xunit.runner.visualstudio" Version="2.2.0" />
+   </ItemGroup>
+-- 
+2.12.3
+

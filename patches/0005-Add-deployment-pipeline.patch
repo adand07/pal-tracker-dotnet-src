@@ -1,0 +1,119 @@
+From 1fe9bfde5783803f3aafe1bbc9875bc39d11898b Mon Sep 17 00:00:00 2001
+From: Alex Sartan <asartan@pivotal.io>
+Date: Fri, 26 Jan 2018 14:35:55 -0700
+Subject: [PATCH 05/13] Add deployment pipeline
+
+---
+ ci/build.yml             | 27 +++++++++++++++++++++++++++
+ ci/pipeline.yml          | 31 +++++++++++++++++++++++++++++++
+ ci/variables.example.yml |  9 +++++++++
+ manifest.yml             |  5 ++---
+ 4 files changed, 69 insertions(+), 3 deletions(-)
+ create mode 100644 ci/build.yml
+ create mode 100644 ci/pipeline.yml
+ create mode 100644 ci/variables.example.yml
+
+diff --git a/ci/build.yml b/ci/build.yml
+new file mode 100644
+index 0000000..f092a79
+--- /dev/null
++++ b/ci/build.yml
+@@ -0,0 +1,27 @@
++platform: linux
++
++image_resource:
++  type: docker-image
++  source:
++    repository: microsoft/dotnet
++    tag: '2-sdk'
++
++inputs:
++  - name: pal-tracker
++
++outputs:
++  - name: build-output
++
++run:
++  path: bash
++  args:
++  - -exc
++  - |
++  
++    mkdir -p build-output/src/PalTracker
++    cp pal-tracker/manifest.yml build-output
++    
++    dotnet test ./pal-tracker/test/PalTrackerTests
++
++    dotnet publish ./pal-tracker/src/PalTracker --configuration Release \
++      --output $(pwd)/build-output/src/PalTracker/bin/Release/netcoreapp2.0/publish
+\ No newline at end of file
+diff --git a/ci/pipeline.yml b/ci/pipeline.yml
+new file mode 100644
+index 0000000..6b5a403
+--- /dev/null
++++ b/ci/pipeline.yml
+@@ -0,0 +1,31 @@
++---
++resources:
++- name: pal-tracker
++  type: git
++  source:
++    uri: {{github-repository}}
++    branch: master
++    private_key: {{github-private-key}}
++
++- name: deploy
++  type: cf
++  source:
++    api: {{cf-api-url}}
++    username: {{cf-username}}
++    password: {{cf-password}}
++    organization: {{cf-org}}
++    space: sandbox
++
++jobs:
++- name: build-and-deploy
++  plan:
++  - get: pal-tracker
++    trigger: true
++  - task: build and test
++    file: pal-tracker/ci/build.yml
++  - put: deploy
++    params:
++      manifest: build-output/manifest.yml
++      path: build-output
++      environment_variables:
++        WELCOME_MESSAGE: Hello from Concourse
+diff --git a/ci/variables.example.yml b/ci/variables.example.yml
+new file mode 100644
+index 0000000..a51f2b8
+--- /dev/null
++++ b/ci/variables.example.yml
+@@ -0,0 +1,9 @@
++cf-api-url: CF_API_URL
++cf-username: CF_USERNAME
++cf-password: CF_PASSWORD
++cf-org: CF_ORG
++github-repository: git@github.com:GITHUB_USERNAME/pal-tracker-dotnet.git
++github-private-key: |
++  -----BEGIN RSA PRIVATE KEY-----
++  REPLACE WITH YOUR PRIVATE KEY HERE
++  -----END RSA PRIVATE KEY-----
+diff --git a/manifest.yml b/manifest.yml
+index 7e7aeb7..2b8232a 100644
+--- a/manifest.yml
++++ b/manifest.yml
+@@ -2,6 +2,5 @@
+ applications:
+ - name: pal-tracker
+   path: src/PalTracker/bin/Release/netcoreapp2.0/publish/
+-  random-route: true
+-  env:
+-    WELCOME_MESSAGE: Hello from Cloud Foundry
+\ No newline at end of file
++  buildpack: https://github.com/cloudfoundry/dotnet-core-buildpack#v2.0.1
++  random-route: true
+\ No newline at end of file
+-- 
+2.12.3
+

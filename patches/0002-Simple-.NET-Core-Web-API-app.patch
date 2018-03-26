@@ -1,0 +1,263 @@
+From 07edfa724b64c86dfe823262dc8d3a6a1e47297e Mon Sep 17 00:00:00 2001
+From: Alex Sartan <asartan@pivotal.io>
+Date: Fri, 26 Jan 2018 10:26:41 -0700
+Subject: [PATCH 02/13] Simple .NET Core Web API app
+
+---
+ PalTracker.sln                              | 56 +++++++++++++++++++++++++++++
+ src/PalTracker/PalTracker.csproj            | 14 ++++++++
+ src/PalTracker/Program.cs                   | 25 +++++++++++++
+ src/PalTracker/Startup.cs                   | 40 +++++++++++++++++++++
+ src/PalTracker/WelcomeController.cs         | 11 ++++++
+ src/PalTracker/appsettings.Development.json | 10 ++++++
+ src/PalTracker/appsettings.json             | 15 ++++++++
+ test/PalTrackerTests/PalTrackerTests.csproj | 14 ++++++++
+ 8 files changed, 185 insertions(+)
+ create mode 100644 PalTracker.sln
+ create mode 100644 src/PalTracker/PalTracker.csproj
+ create mode 100644 src/PalTracker/Program.cs
+ create mode 100644 src/PalTracker/Startup.cs
+ create mode 100644 src/PalTracker/WelcomeController.cs
+ create mode 100644 src/PalTracker/appsettings.Development.json
+ create mode 100644 src/PalTracker/appsettings.json
+ create mode 100644 test/PalTrackerTests/PalTrackerTests.csproj
+
+diff --git a/PalTracker.sln b/PalTracker.sln
+new file mode 100644
+index 0000000..654a593
+--- /dev/null
++++ b/PalTracker.sln
+@@ -0,0 +1,56 @@
++
++Microsoft Visual Studio Solution File, Format Version 12.00
++# Visual Studio 15
++VisualStudioVersion = 15.0.26124.0
++MinimumVisualStudioVersion = 15.0.26124.0
++Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{A9CBD59F-2C06-46A9-B5A0-96BC195B62B8}"
++EndProject
++Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PalTracker", "src\PalTracker\PalTracker.csproj", "{CE386567-B8E7-4822-85DC-330CDA6030E9}"
++EndProject
++Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{346B1A0E-DFD9-4C12-8B68-506E56C335D9}"
++EndProject
++Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PalTrackerTests", "test\PalTrackerTests\PalTrackerTests.csproj", "{BB9DA945-DE37-485C-9F79-F9BF6CBA956D}"
++EndProject
++Global
++	GlobalSection(SolutionConfigurationPlatforms) = preSolution
++		Debug|Any CPU = Debug|Any CPU
++		Debug|x64 = Debug|x64
++		Debug|x86 = Debug|x86
++		Release|Any CPU = Release|Any CPU
++		Release|x64 = Release|x64
++		Release|x86 = Release|x86
++	EndGlobalSection
++	GlobalSection(SolutionProperties) = preSolution
++		HideSolutionNode = FALSE
++	EndGlobalSection
++	GlobalSection(ProjectConfigurationPlatforms) = postSolution
++		{CE386567-B8E7-4822-85DC-330CDA6030E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
++		{CE386567-B8E7-4822-85DC-330CDA6030E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
++		{CE386567-B8E7-4822-85DC-330CDA6030E9}.Debug|x64.ActiveCfg = Debug|x64
++		{CE386567-B8E7-4822-85DC-330CDA6030E9}.Debug|x64.Build.0 = Debug|x64
++		{CE386567-B8E7-4822-85DC-330CDA6030E9}.Debug|x86.ActiveCfg = Debug|x86
++		{CE386567-B8E7-4822-85DC-330CDA6030E9}.Debug|x86.Build.0 = Debug|x86
++		{CE386567-B8E7-4822-85DC-330CDA6030E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
++		{CE386567-B8E7-4822-85DC-330CDA6030E9}.Release|Any CPU.Build.0 = Release|Any CPU
++		{CE386567-B8E7-4822-85DC-330CDA6030E9}.Release|x64.ActiveCfg = Release|x64
++		{CE386567-B8E7-4822-85DC-330CDA6030E9}.Release|x64.Build.0 = Release|x64
++		{CE386567-B8E7-4822-85DC-330CDA6030E9}.Release|x86.ActiveCfg = Release|x86
++		{CE386567-B8E7-4822-85DC-330CDA6030E9}.Release|x86.Build.0 = Release|x86
++		{BB9DA945-DE37-485C-9F79-F9BF6CBA956D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
++		{BB9DA945-DE37-485C-9F79-F9BF6CBA956D}.Debug|Any CPU.Build.0 = Debug|Any CPU
++		{BB9DA945-DE37-485C-9F79-F9BF6CBA956D}.Debug|x64.ActiveCfg = Debug|x64
++		{BB9DA945-DE37-485C-9F79-F9BF6CBA956D}.Debug|x64.Build.0 = Debug|x64
++		{BB9DA945-DE37-485C-9F79-F9BF6CBA956D}.Debug|x86.ActiveCfg = Debug|x86
++		{BB9DA945-DE37-485C-9F79-F9BF6CBA956D}.Debug|x86.Build.0 = Debug|x86
++		{BB9DA945-DE37-485C-9F79-F9BF6CBA956D}.Release|Any CPU.ActiveCfg = Release|Any CPU
++		{BB9DA945-DE37-485C-9F79-F9BF6CBA956D}.Release|Any CPU.Build.0 = Release|Any CPU
++		{BB9DA945-DE37-485C-9F79-F9BF6CBA956D}.Release|x64.ActiveCfg = Release|x64
++		{BB9DA945-DE37-485C-9F79-F9BF6CBA956D}.Release|x64.Build.0 = Release|x64
++		{BB9DA945-DE37-485C-9F79-F9BF6CBA956D}.Release|x86.ActiveCfg = Release|x86
++		{BB9DA945-DE37-485C-9F79-F9BF6CBA956D}.Release|x86.Build.0 = Release|x86
++	EndGlobalSection
++	GlobalSection(NestedProjects) = preSolution
++		{CE386567-B8E7-4822-85DC-330CDA6030E9} = {A9CBD59F-2C06-46A9-B5A0-96BC195B62B8}
++		{BB9DA945-DE37-485C-9F79-F9BF6CBA956D} = {346B1A0E-DFD9-4C12-8B68-506E56C335D9}
++	EndGlobalSection
++EndGlobal
+diff --git a/src/PalTracker/PalTracker.csproj b/src/PalTracker/PalTracker.csproj
+new file mode 100644
+index 0000000..c37c258
+--- /dev/null
++++ b/src/PalTracker/PalTracker.csproj
+@@ -0,0 +1,14 @@
++﻿<Project Sdk="Microsoft.NET.Sdk.Web">
++  <PropertyGroup>
++    <TargetFramework>netcoreapp2.0</TargetFramework>
++  </PropertyGroup>
++  <ItemGroup>
++    <Folder Include="wwwroot\" />
++  </ItemGroup>
++  <ItemGroup>
++    <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.3" />
++  </ItemGroup>
++  <ItemGroup>
++    <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="2.0.2" />
++  </ItemGroup>
++</Project>
+\ No newline at end of file
+diff --git a/src/PalTracker/Program.cs b/src/PalTracker/Program.cs
+new file mode 100644
+index 0000000..2eefaad
+--- /dev/null
++++ b/src/PalTracker/Program.cs
+@@ -0,0 +1,25 @@
++﻿using System;
++using System.Collections.Generic;
++using System.IO;
++using System.Linq;
++using System.Threading.Tasks;
++using Microsoft.AspNetCore;
++using Microsoft.AspNetCore.Hosting;
++using Microsoft.Extensions.Configuration;
++using Microsoft.Extensions.Logging;
++
++namespace PalTracker
++{
++    public class Program
++    {
++        public static void Main(string[] args)
++        {
++            BuildWebHost(args).Run();
++        }
++
++        public static IWebHost BuildWebHost(string[] args) =>
++            WebHost.CreateDefaultBuilder(args)
++                .UseStartup<Startup>()
++                .Build();
++    }
++}
+diff --git a/src/PalTracker/Startup.cs b/src/PalTracker/Startup.cs
+new file mode 100644
+index 0000000..5c945bd
+--- /dev/null
++++ b/src/PalTracker/Startup.cs
+@@ -0,0 +1,40 @@
++﻿using System;
++using System.Collections.Generic;
++using System.Linq;
++using System.Threading.Tasks;
++using Microsoft.AspNetCore.Builder;
++using Microsoft.AspNetCore.Hosting;
++using Microsoft.Extensions.Configuration;
++using Microsoft.Extensions.DependencyInjection;
++using Microsoft.Extensions.Logging;
++using Microsoft.Extensions.Options;
++
++namespace PalTracker
++{
++    public class Startup
++    {
++        public Startup(IConfiguration configuration)
++        {
++            Configuration = configuration;
++        }
++
++        public IConfiguration Configuration { get; }
++
++        // This method gets called by the runtime. Use this method to add services to the container.
++        public void ConfigureServices(IServiceCollection services)
++        {
++            services.AddMvc();
++        }
++
++        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
++        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
++        {
++            if (env.IsDevelopment())
++            {
++                app.UseDeveloperExceptionPage();
++            }
++
++            app.UseMvc();
++        }
++    }
++}
+diff --git a/src/PalTracker/WelcomeController.cs b/src/PalTracker/WelcomeController.cs
+new file mode 100644
+index 0000000..f5de9da
+--- /dev/null
++++ b/src/PalTracker/WelcomeController.cs
+@@ -0,0 +1,11 @@
++﻿using Microsoft.AspNetCore.Mvc;
++
++namespace PalTracker
++{
++    [Route("/")]
++    public class WelcomeController : Controller
++    {
++        [HttpGet]
++        public string SayHello() => "hello";
++    }
++}
+\ No newline at end of file
+diff --git a/src/PalTracker/appsettings.Development.json b/src/PalTracker/appsettings.Development.json
+new file mode 100644
+index 0000000..fa8ce71
+--- /dev/null
++++ b/src/PalTracker/appsettings.Development.json
+@@ -0,0 +1,10 @@
++﻿{
++  "Logging": {
++    "IncludeScopes": false,
++    "LogLevel": {
++      "Default": "Debug",
++      "System": "Information",
++      "Microsoft": "Information"
++    }
++  }
++}
+diff --git a/src/PalTracker/appsettings.json b/src/PalTracker/appsettings.json
+new file mode 100644
+index 0000000..26bb0ac
+--- /dev/null
++++ b/src/PalTracker/appsettings.json
+@@ -0,0 +1,15 @@
++﻿{
++  "Logging": {
++    "IncludeScopes": false,
++    "Debug": {
++      "LogLevel": {
++        "Default": "Warning"
++      }
++    },
++    "Console": {
++      "LogLevel": {
++        "Default": "Warning"
++      }
++    }
++  }
++}
+diff --git a/test/PalTrackerTests/PalTrackerTests.csproj b/test/PalTrackerTests/PalTrackerTests.csproj
+new file mode 100644
+index 0000000..14023cc
+--- /dev/null
++++ b/test/PalTrackerTests/PalTrackerTests.csproj
+@@ -0,0 +1,14 @@
++﻿<Project Sdk="Microsoft.NET.Sdk">
++  <PropertyGroup>
++    <TargetFramework>netcoreapp2.0</TargetFramework>
++    <IsPackable>false</IsPackable>
++  </PropertyGroup>
++  <ItemGroup>
++    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.3.0-preview-20170628-02" />
++    <PackageReference Include="xunit" Version="2.2.0" />
++    <PackageReference Include="xunit.runner.visualstudio" Version="2.2.0" />
++  </ItemGroup>
++  <ItemGroup>
++    <ProjectReference Include="..\..\src\PalTracker\PalTracker.csproj" />
++  </ItemGroup>
++</Project>
+\ No newline at end of file
+-- 
+2.12.3
+

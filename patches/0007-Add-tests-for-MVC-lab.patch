@@ -1,0 +1,423 @@
+From d23bd81dbe6045831565823148fb3132b84586e3 Mon Sep 17 00:00:00 2001
+From: Alex Sartan <asartan@pivotal.io>
+Date: Tue, 30 Jan 2018 10:58:14 -0700
+Subject: [PATCH 07/13] Add tests for MVC lab
+
+---
+ .../InMemoryTimeEntryRepositoryTest.cs             |  88 ++++++++++++
+ test/PalTrackerTests/TimeEntryControllerTest.cs    | 155 +++++++++++++++++++++
+ test/PalTrackerTests/TimeEntryIntegrationTest.cs   | 142 +++++++++++++++++++
+ 3 files changed, 385 insertions(+)
+ create mode 100644 test/PalTrackerTests/InMemoryTimeEntryRepositoryTest.cs
+ create mode 100644 test/PalTrackerTests/TimeEntryControllerTest.cs
+ create mode 100644 test/PalTrackerTests/TimeEntryIntegrationTest.cs
+
+diff --git a/test/PalTrackerTests/InMemoryTimeEntryRepositoryTest.cs b/test/PalTrackerTests/InMemoryTimeEntryRepositoryTest.cs
+new file mode 100644
+index 0000000..42f7ad9
+--- /dev/null
++++ b/test/PalTrackerTests/InMemoryTimeEntryRepositoryTest.cs
+@@ -0,0 +1,88 @@
++﻿using System;
++using System.Linq;
++using PalTracker;
++using Xunit;
++
++namespace PalTrackerTests
++{
++    public class InMemoryTimeEntryRepositoryTest
++    {
++        private readonly InMemoryTimeEntryRepository _repository;
++
++        public InMemoryTimeEntryRepositoryTest()
++        {
++            _repository = new InMemoryTimeEntryRepository();
++        }
++
++        [Fact]
++        public void Create()
++        {
++            var expected = new TimeEntry(1, 222, 333, new DateTime(2008, 08, 01, 12, 00, 01), 24);
++
++            var created = _repository.Create(new TimeEntry(222, 333, new DateTime(2008, 08, 01, 12, 00, 01), 24));
++
++            Assert.Equal(expected, created);
++            Assert.Equal(expected, _repository.Find(1));
++        }
++
++        [Fact]
++        public void Find()
++        {
++            _repository.Create(new TimeEntry(222, 333, new DateTime(2008, 08, 01, 12, 00, 01), 24));
++
++            var found = _repository.Find(1);
++
++            Assert.Equal(new TimeEntry(1, 222, 333, new DateTime(2008, 08, 01, 12, 00, 01), 24), found);
++        }
++
++        [Fact]
++        public void Contains()
++        {
++            _repository.Create(new TimeEntry(222, 333, new DateTime(2008, 08, 01, 12, 00, 01), 24));
++
++            _repository.Contains(1);
++
++            Assert.True(_repository.Contains(1));
++            Assert.False(_repository.Contains(2));
++        }
++
++        [Fact]
++        public void List()
++        {
++            _repository.Create(new TimeEntry(222, 333, new DateTime(2008, 08, 01, 12, 00, 01), 24));
++            _repository.Create(new TimeEntry(888, 777, new DateTime(2012, 09, 02, 11, 30, 00), 12));
++
++            var found = _repository.List();
++
++            Assert.Contains(new TimeEntry(2, 888, 777, new DateTime(2012, 09, 02, 11, 30, 00), 12), found);
++            Assert.Contains(new TimeEntry(1, 222, 333, new DateTime(2008, 08, 01, 12, 00, 01), 24), found);
++            Assert.Equal(2, found.Count());
++        }
++
++        [Fact]
++        public void Update()
++        {
++            _repository.Create(new TimeEntry(222, 333, new DateTime(2008, 08, 01, 12, 00, 01), 24));
++
++            _repository.Update(1, new TimeEntry(555, 666, new DateTime(2020, 08, 01, 01, 55, 10), 8));
++
++            var entires = _repository.List();
++            Assert.Contains(new TimeEntry(1, 555, 666, new DateTime(2020, 08, 01, 01, 55, 10), 8), entires);
++            Assert.DoesNotContain(new TimeEntry(1, 222, 333, new DateTime(2008, 08, 01, 12, 00, 01), 24), entires);
++        }
++
++        [Fact]
++        public void Delete()
++        {
++            _repository.Create(new TimeEntry(222, 333, new DateTime(2008, 08, 01, 12, 00, 01), 24));
++            _repository.Create(new TimeEntry(888, 777, new DateTime(2012, 09, 02, 11, 30, 00), 12));
++
++            _repository.Delete(1);
++
++            var remaining = _repository.List();
++            Assert.DoesNotContain(new TimeEntry(1, 222, 333, new DateTime(2008, 08, 01, 12, 00, 01), 24), remaining);
++            Assert.Contains(new TimeEntry(2, 888, 777, new DateTime(2012, 09, 02, 11, 30, 00), 12), remaining);
++            Assert.Equal(1, remaining.Count());
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/test/PalTrackerTests/TimeEntryControllerTest.cs b/test/PalTrackerTests/TimeEntryControllerTest.cs
+new file mode 100644
+index 0000000..772736d
+--- /dev/null
++++ b/test/PalTrackerTests/TimeEntryControllerTest.cs
+@@ -0,0 +1,155 @@
++﻿using System;
++using System.Collections.Generic;
++using Microsoft.AspNetCore.Mvc;
++using Moq;
++using PalTracker;
++using Xunit;
++
++namespace PalTrackerTests
++{
++    public class TimeEntryControllerTest
++    {
++        private readonly TimeEntryController _controller;
++        private readonly Mock<ITimeEntryRepository> _repository;
++
++        public TimeEntryControllerTest()
++        {
++            _repository = new Mock<ITimeEntryRepository>();
++            _controller = new TimeEntryController(_repository.Object);
++        }
++
++        [Fact]
++        public void Read()
++        {
++            var expected = new TimeEntry(1, 222, 333, new DateTime(2008, 08, 01, 12, 00, 01), 24);
++            _repository.Setup(r => r.Contains(1)).Returns(true);
++            _repository.Setup(r => r.Find(1)).Returns(expected);
++
++            var response = _controller.Read(1);
++
++            Assert.IsType<OkObjectResult>(response);
++
++            var typedResponse = response as OkObjectResult;
++
++            Assert.Equal(expected, typedResponse.Value);
++            Assert.Equal(200, typedResponse.StatusCode);
++        }
++
++        [Fact]
++        public void Read_NotFound()
++        {
++            _repository.Setup(r => r.Contains(1)).Returns(false);
++
++            var response = _controller.Read(1);
++
++            Assert.IsType<NotFoundResult>(response);
++
++            var typedResponse = response as NotFoundResult;
++
++            Assert.Equal(404, typedResponse.StatusCode);
++        }
++
++        [Fact]
++        public void Create()
++        {
++            var toCreate = new TimeEntry(222, 333, new DateTime(2008, 08, 01, 12, 00, 01), 24);
++            var expected = new TimeEntry(1, 222, 333, new DateTime(2008, 08, 01, 12, 00, 01), 24);
++            _repository.Setup(r => r.Create(toCreate)).Returns(expected);
++
++            var response = _controller.Create(toCreate);
++
++            Assert.IsType<CreatedAtRouteResult>(response);
++
++            var typedResponse = response as CreatedAtRouteResult;
++
++            Assert.Equal(201, typedResponse.StatusCode);
++            Assert.Equal("GetTimeEntry", typedResponse.RouteName);
++            Assert.Equal(expected, typedResponse.Value);
++        }
++
++        [Fact]
++        public void List()
++        {
++            var timeEntries = new List<TimeEntry>
++            {
++                new TimeEntry(1, 222, 333, new DateTime(2008, 08, 01, 12, 00, 01), 24),
++                new TimeEntry(2, 999, 888, new DateTime(2018, 12, 05, 23, 00, 01), 8)
++            };
++
++            _repository.Setup(r => r.List()).Returns(timeEntries);
++
++            var response = _controller.List();
++
++            Assert.IsType<OkObjectResult>(response);
++
++            var typedResponse = response as OkObjectResult;
++
++            Assert.Equal(timeEntries, typedResponse.Value);
++            Assert.Equal(200, typedResponse.StatusCode);
++        }
++
++        [Fact]
++        public void Update()
++        {
++            var theUpdate = new TimeEntry(999, 888, new DateTime(2018, 12, 05, 23, 00, 01), 8);
++            var updated = new TimeEntry(1, 999, 888, new DateTime(2018, 12, 05, 23, 00, 01), 8);
++
++            _repository.Setup(r => r.Update(1, theUpdate)).Returns(updated);
++            _repository.Setup(r => r.Contains(1)).Returns(true);
++
++            var response = _controller.Update(1, theUpdate);
++
++            Assert.IsType<OkObjectResult>(response);
++
++            var typedResponse = response as OkObjectResult;
++
++            Assert.Equal(updated, typedResponse.Value);
++            Assert.Equal(200, typedResponse.StatusCode);
++        }
++
++        [Fact]
++        public void Update_NotFound()
++        {
++            var theUpdate = new TimeEntry(999, 888, new DateTime(2018, 12, 05, 23, 00, 01), 8);
++
++            _repository.Setup(r => r.Contains(1)).Returns(false);
++
++            var response = _controller.Update(1, theUpdate);
++
++            Assert.IsType<NotFoundResult>(response);
++
++            var typedResponse = response as NotFoundResult;
++
++            Assert.Equal(404, typedResponse.StatusCode);
++        }
++
++        [Fact]
++        public void Delete()
++        {
++            _repository.Setup(r => r.Contains(1)).Returns(true);
++            _repository.Setup(r => r.Delete(1));
++
++            var response = _controller.Delete(1);
++
++            Assert.IsType<NoContentResult>(response);
++
++            var typedResponse = response as NoContentResult;
++
++            Assert.Equal(204, typedResponse.StatusCode);
++        }
++
++        [Fact]
++        public void Delete_NotFound()
++        {
++            _repository.Setup(r => r.Contains(1)).Returns(false);
++
++            var response = _controller.Delete(1);
++
++            Assert.IsType<NotFoundResult>(response);
++
++            var typedResponse = response as NotFoundResult;
++
++            Assert.Equal(404, typedResponse.StatusCode);
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/test/PalTrackerTests/TimeEntryIntegrationTest.cs b/test/PalTrackerTests/TimeEntryIntegrationTest.cs
+new file mode 100644
+index 0000000..148ea00
+--- /dev/null
++++ b/test/PalTrackerTests/TimeEntryIntegrationTest.cs
+@@ -0,0 +1,142 @@
++﻿using System;
++using System.Net;
++using System.Net.Http;
++using System.Text;
++using Newtonsoft.Json;
++using Newtonsoft.Json.Linq;
++using PalTracker;
++using Xunit;
++
++namespace PalTrackerTests
++{
++    [Collection("Integration")]
++    public class TimeEntryIntegrationTest
++    {
++
++        private readonly HttpClient _testClient;
++
++        public TimeEntryIntegrationTest()
++        {
++            _testClient = IntegrationTestServer.Start().CreateClient();
++        }
++
++        [Fact]
++        public void Read()
++        {
++            var id = CreateTimeEntry(new TimeEntry(999, 1010,  new DateTime(2015, 10, 10), 9));
++
++            var response = _testClient.GetAsync($"/time-entries/{id}").Result;
++            var responseBody = JObject.Parse(response.Content.ReadAsStringAsync().Result);
++
++            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
++            Assert.Equal(id, responseBody["id"].ToObject<long>());
++            Assert.Equal(999, responseBody["projectId"].ToObject<long>());
++            Assert.Equal(1010, responseBody["userId"].ToObject<long>());
++            Assert.Equal("10/10/2015 00:00:00", responseBody["date"].ToObject<string>());
++            Assert.Equal(9, responseBody["hours"].ToObject<int>());
++        }
++
++        [Fact]
++        public void Create()
++        {
++            var timeEntry = new TimeEntry(222, 333,  new DateTime(2008, 01, 08), 24);
++
++            var response = _testClient.PostAsync("/time-entries", SerializePayload(timeEntry)).Result;
++            var responseBody = JObject.Parse(response.Content.ReadAsStringAsync().Result);
++
++            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
++            Assert.True(responseBody["id"].ToObject<long>() > 0);
++            Assert.Equal(222, responseBody["projectId"].ToObject<long>());
++            Assert.Equal(333, responseBody["userId"].ToObject<long>());
++            Assert.Equal("01/08/2008 00:00:00", responseBody["date"].ToObject<string>());
++            Assert.Equal(24, responseBody["hours"].ToObject<int>());
++        }
++
++        [Fact]
++        public void List()
++        {
++            var id1 = CreateTimeEntry(new TimeEntry(222, 333,  new DateTime(2008, 01, 08), 24));
++            var id2 = CreateTimeEntry(new TimeEntry(444, 555,  new DateTime(2008, 02, 10), 6));
++
++            var response = _testClient.GetAsync("/time-entries").Result;
++            var responseBody = JArray.Parse(response.Content.ReadAsStringAsync().Result);
++
++            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
++
++            Assert.Equal(id1, responseBody[0]["id"].ToObject<int>());
++            Assert.Equal(222, responseBody[0]["projectId"].ToObject<long>());
++            Assert.Equal(333, responseBody[0]["userId"].ToObject<long>());
++            Assert.Equal("01/08/2008 00:00:00", responseBody[0]["date"].ToObject<string>());
++            Assert.Equal(24, responseBody[0]["hours"].ToObject<int>());
++
++            Assert.Equal(id2, responseBody[1]["id"].ToObject<int>());
++            Assert.Equal(444, responseBody[1]["projectId"].ToObject<long>());
++            Assert.Equal(555, responseBody[1]["userId"].ToObject<long>());
++            Assert.Equal("02/10/2008 00:00:00", responseBody[1]["date"].ToObject<string>());
++            Assert.Equal(6, responseBody[1]["hours"].ToObject<int>());
++        }
++
++        [Fact]
++        public void Update()
++        {
++            var id = CreateTimeEntry(new TimeEntry(222, 333,  new DateTime(2008, 01, 08), 24));
++            var updated = new TimeEntry(999, 888,  new DateTime(2012, 08, 12), 2);
++
++            var putResponse = _testClient.PutAsync($"/time-entries/{id}", SerializePayload(updated)).Result;
++            var getResponse = _testClient.GetAsync($"/time-entries/{id}").Result;
++            var getAllResponse = _testClient.GetAsync("/time-entries").Result;
++
++            Assert.Equal(HttpStatusCode.OK, putResponse.StatusCode);
++            Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
++            Assert.Equal(HttpStatusCode.OK, getAllResponse.StatusCode);
++
++            var getAllResponseBody = JArray.Parse(getAllResponse.Content.ReadAsStringAsync().Result);
++
++            Assert.Equal(1, getAllResponseBody.Count);
++            Assert.Equal(id, getAllResponseBody[0]["id"].ToObject<int>());
++            Assert.Equal(999, getAllResponseBody[0]["projectId"].ToObject<long>());
++            Assert.Equal(888, getAllResponseBody[0]["userId"].ToObject<long>());
++            Assert.Equal("08/12/2012 00:00:00", getAllResponseBody[0]["date"].ToObject<string>());
++            Assert.Equal(2, getAllResponseBody[0]["hours"].ToObject<int>());
++
++            var getResponseBody = JObject.Parse(getResponse.Content.ReadAsStringAsync().Result);
++
++            Assert.Equal(id, getResponseBody["id"].ToObject<int>());
++            Assert.Equal(999, getResponseBody["projectId"].ToObject<long>());
++            Assert.Equal(888, getResponseBody["userId"].ToObject<long>());
++            Assert.Equal("08/12/2012 00:00:00", getResponseBody["date"].ToObject<string>());
++            Assert.Equal(2, getResponseBody["hours"].ToObject<int>());
++        }
++
++        [Fact]
++        public void Delete()
++        {
++            var id = CreateTimeEntry(new TimeEntry(222, 333,  new DateTime(2008, 01, 08), 24));
++
++            var deleteResponse = _testClient.DeleteAsync($"/time-entries/{id}").Result;
++            var getResponse = _testClient.GetAsync($"/time-entries/{id}").Result;
++            var getAllResponse = _testClient.GetAsync("/time-entries").Result;
++
++            Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
++            Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
++            Assert.Equal("[]", getAllResponse.Content.ReadAsStringAsync().Result);
++        }
++
++        private long CreateTimeEntry(TimeEntry timeEntry)
++        {
++            var response = _testClient.PostAsync("/time-entries", SerializePayload(timeEntry)).Result;
++
++            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
++
++            var responseBody = JObject.Parse(response.Content.ReadAsStringAsync().Result);
++
++            return responseBody["id"].ToObject<long>();
++        }
++
++        private static HttpContent SerializePayload(TimeEntry timeEntry) => new StringContent(
++            JsonConvert.SerializeObject(timeEntry),
++            Encoding.UTF8,
++            "application/json"
++        );
++    }
++}
+\ No newline at end of file
+-- 
+2.12.3
+

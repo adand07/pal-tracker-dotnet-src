@@ -1,0 +1,178 @@
+From c99325f57a9847a5289f99044810d9f58a1691c5 Mon Sep 17 00:00:00 2001
+From: Alex Sartan <asartan@pivotal.io>
+Date: Fri, 26 Jan 2018 13:41:36 -0700
+Subject: [PATCH 04/13] Add manifest file for deployment to PCF
+
+---
+ manifest.yml                                |  7 +++++++
+ src/PalTracker/CloudFoundryInfo.cs          | 18 ++++++++++++++++++
+ src/PalTracker/EnvController.cs             | 18 ++++++++++++++++++
+ src/PalTracker/Program.cs                   |  6 ++++--
+ src/PalTracker/Startup.cs                   | 11 +++++++++++
+ src/PalTracker/WelcomeController.cs         |  9 ++++++++-
+ src/PalTracker/WelcomeMessage.cs            | 12 ++++++++++++
+ test/PalTrackerTests/PalTrackerTests.csproj |  1 +
+ 8 files changed, 79 insertions(+), 3 deletions(-)
+ create mode 100644 manifest.yml
+ create mode 100644 src/PalTracker/CloudFoundryInfo.cs
+ create mode 100644 src/PalTracker/EnvController.cs
+ create mode 100644 src/PalTracker/WelcomeMessage.cs
+
+diff --git a/manifest.yml b/manifest.yml
+new file mode 100644
+index 0000000..7e7aeb7
+--- /dev/null
++++ b/manifest.yml
+@@ -0,0 +1,7 @@
++---
++applications:
++- name: pal-tracker
++  path: src/PalTracker/bin/Release/netcoreapp2.0/publish/
++  random-route: true
++  env:
++    WELCOME_MESSAGE: Hello from Cloud Foundry
+\ No newline at end of file
+diff --git a/src/PalTracker/CloudFoundryInfo.cs b/src/PalTracker/CloudFoundryInfo.cs
+new file mode 100644
+index 0000000..93c696c
+--- /dev/null
++++ b/src/PalTracker/CloudFoundryInfo.cs
+@@ -0,0 +1,18 @@
++﻿namespace PalTracker
++{
++    public class CloudFoundryInfo
++    {
++        public string Port { get; }
++        public string MemoryLimit { get; }
++        public string CfInstanceIndex { get; }
++        public string CfInstanceAddr { get; }
++
++        public CloudFoundryInfo(string port, string memoryLimit, string cfInstanceIndex, string cfInstanceAddr)
++        {
++            Port = port;
++            MemoryLimit = memoryLimit;
++            CfInstanceIndex = cfInstanceIndex;
++            CfInstanceAddr = cfInstanceAddr;
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/src/PalTracker/EnvController.cs b/src/PalTracker/EnvController.cs
+new file mode 100644
+index 0000000..e391b95
+--- /dev/null
++++ b/src/PalTracker/EnvController.cs
+@@ -0,0 +1,18 @@
++﻿using Microsoft.AspNetCore.Mvc;
++
++namespace PalTracker
++{
++    [Route("env")]
++    public class EnvController : Controller
++    {
++        private readonly CloudFoundryInfo _cloudFoundryEnv;
++
++        [HttpGet]
++        public CloudFoundryInfo Get() => _cloudFoundryEnv;
++
++        public EnvController(CloudFoundryInfo cloudFoundryEnv)
++        {
++            _cloudFoundryEnv = cloudFoundryEnv;
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/src/PalTracker/Program.cs b/src/PalTracker/Program.cs
+index 2eefaad..ecf683e 100644
+--- a/src/PalTracker/Program.cs
++++ b/src/PalTracker/Program.cs
+@@ -18,8 +18,10 @@ namespace PalTracker
+         }
+ 
+         public static IWebHost BuildWebHost(string[] args) =>
++            WebHostBuilder(args).Build();
++
++        public static IWebHostBuilder WebHostBuilder(string[] args) =>
+             WebHost.CreateDefaultBuilder(args)
+-                .UseStartup<Startup>()
+-                .Build();
++                .UseStartup<Startup>();
+     }
+ }
+diff --git a/src/PalTracker/Startup.cs b/src/PalTracker/Startup.cs
+index 5c945bd..049548b 100644
+--- a/src/PalTracker/Startup.cs
++++ b/src/PalTracker/Startup.cs
+@@ -24,6 +24,17 @@ namespace PalTracker
+         public void ConfigureServices(IServiceCollection services)
+         {
+             services.AddMvc();
++
++            services.AddSingleton(sp => new WelcomeMessage(
++                Configuration.GetValue<string>("WELCOME_MESSAGE", "WELCOME_MESSAGE not configured.")
++            ));
++
++            services.AddSingleton(sp => new CloudFoundryInfo(
++                Configuration.GetValue<string>("PORT"),
++                Configuration.GetValue<string>("MEMORY_LIMIT"),
++                Configuration.GetValue<string>("CF_INSTANCE_INDEX"),
++                Configuration.GetValue<string>("CF_INSTANCE_ADDR")
++            ));
+         }
+ 
+         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+diff --git a/src/PalTracker/WelcomeController.cs b/src/PalTracker/WelcomeController.cs
+index f5de9da..40ebd35 100644
+--- a/src/PalTracker/WelcomeController.cs
++++ b/src/PalTracker/WelcomeController.cs
+@@ -5,7 +5,14 @@ namespace PalTracker
+     [Route("/")]
+     public class WelcomeController : Controller
+     {
++        private readonly WelcomeMessage _message;
++
+         [HttpGet]
+-        public string SayHello() => "hello";
++        public string SayHello() => _message.Message;
++
++        public WelcomeController(WelcomeMessage message)
++        {
++            _message = message;
++        }
+     }
+ }
+\ No newline at end of file
+diff --git a/src/PalTracker/WelcomeMessage.cs b/src/PalTracker/WelcomeMessage.cs
+new file mode 100644
+index 0000000..ddf5a8d
+--- /dev/null
++++ b/src/PalTracker/WelcomeMessage.cs
+@@ -0,0 +1,12 @@
++﻿namespace PalTracker
++{
++    public class WelcomeMessage
++    {
++        public string Message { get; }
++
++        public WelcomeMessage(string message)
++        {
++            Message = message;
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/test/PalTrackerTests/PalTrackerTests.csproj b/test/PalTrackerTests/PalTrackerTests.csproj
+index 14023cc..36d99a1 100644
+--- a/test/PalTrackerTests/PalTrackerTests.csproj
++++ b/test/PalTrackerTests/PalTrackerTests.csproj
+@@ -4,6 +4,7 @@
+     <IsPackable>false</IsPackable>
+   </PropertyGroup>
+   <ItemGroup>
++    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="2.0.1" />
+     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.3.0-preview-20170628-02" />
+     <PackageReference Include="xunit" Version="2.2.0" />
+     <PackageReference Include="xunit.runner.visualstudio" Version="2.2.0" />
+-- 
+2.12.3
+

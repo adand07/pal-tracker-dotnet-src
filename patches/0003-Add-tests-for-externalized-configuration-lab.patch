@@ -1,0 +1,180 @@
+From e126f67005ff3543f8428cc0a557f8f467abd903 Mon Sep 17 00:00:00 2001
+From: Alex Sartan <asartan@pivotal.io>
+Date: Fri, 26 Jan 2018 10:30:42 -0700
+Subject: [PATCH 03/13] Add tests for externalized configuration lab
+
+---
+ test/PalTrackerTests/EnvControllerTest.cs      | 28 ++++++++++++++++++++
+ test/PalTrackerTests/EnvIntegrationTest.cs     | 36 ++++++++++++++++++++++++++
+ test/PalTrackerTests/IntegrationTestServer.cs  | 11 ++++++++
+ test/PalTrackerTests/WelcomeControllerTest.cs  | 18 +++++++++++++
+ test/PalTrackerTests/WelcomeIntegrationTest.cs | 31 ++++++++++++++++++++++
+ 5 files changed, 124 insertions(+)
+ create mode 100644 test/PalTrackerTests/EnvControllerTest.cs
+ create mode 100644 test/PalTrackerTests/EnvIntegrationTest.cs
+ create mode 100644 test/PalTrackerTests/IntegrationTestServer.cs
+ create mode 100644 test/PalTrackerTests/WelcomeControllerTest.cs
+ create mode 100644 test/PalTrackerTests/WelcomeIntegrationTest.cs
+
+diff --git a/test/PalTrackerTests/EnvControllerTest.cs b/test/PalTrackerTests/EnvControllerTest.cs
+new file mode 100644
+index 0000000..e501a2e
+--- /dev/null
++++ b/test/PalTrackerTests/EnvControllerTest.cs
+@@ -0,0 +1,28 @@
++﻿using System.Collections.Generic;
++using Microsoft.Extensions.Configuration;
++using PalTracker;
++using Xunit;
++
++namespace PalTrackerTests
++{
++    public class EnvControllerTest
++    {
++        [Fact]
++        public void Get()
++        {
++            var cloudFoundryInfo = new CloudFoundryInfo(
++                "8080",
++                "512M",
++                "1",
++                "127.0.0.1"
++            );
++
++            var response = new EnvController(cloudFoundryInfo).Get();
++
++            Assert.Equal("8080", response.Port);
++            Assert.Equal("512M", response.MemoryLimit);
++            Assert.Equal("1", response.CfInstanceIndex);
++            Assert.Equal("127.0.0.1", response.CfInstanceAddr);
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/test/PalTrackerTests/EnvIntegrationTest.cs b/test/PalTrackerTests/EnvIntegrationTest.cs
+new file mode 100644
+index 0000000..e332b6d
+--- /dev/null
++++ b/test/PalTrackerTests/EnvIntegrationTest.cs
+@@ -0,0 +1,36 @@
++﻿using System;
++using System.Net.Http;
++using System.Threading.Tasks;
++using Xunit;
++
++namespace PalTrackerTests
++{
++    [Collection("Integration")]
++    public class EnvIntegrationTest
++    {
++        private readonly HttpClient _testClient;
++
++        public EnvIntegrationTest()
++        {
++            Environment.SetEnvironmentVariable("PORT", "123");
++            Environment.SetEnvironmentVariable("MEMORY_LIMIT", "512M");
++            Environment.SetEnvironmentVariable("CF_INSTANCE_INDEX", "1");
++            Environment.SetEnvironmentVariable("CF_INSTANCE_ADDR", "127.0.0.1");
++
++            _testClient = IntegrationTestServer.Start().CreateClient();
++        }
++
++        [Fact]
++        public async Task ReturnsCloudFoundryEnv()
++        {
++            var response = await _testClient.GetAsync("/env");
++            response.EnsureSuccessStatusCode();
++
++            var expectedResponse =
++                @"{""port"":""123"",""memoryLimit"":""512M"",""cfInstanceIndex"":""1"",""cfInstanceAddr"":""127.0.0.1""}";
++            var actualResponse = await response.Content.ReadAsStringAsync();
++
++            Assert.Equal(expectedResponse, actualResponse);
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/test/PalTrackerTests/IntegrationTestServer.cs b/test/PalTrackerTests/IntegrationTestServer.cs
+new file mode 100644
+index 0000000..3edc62d
+--- /dev/null
++++ b/test/PalTrackerTests/IntegrationTestServer.cs
+@@ -0,0 +1,11 @@
++﻿using Microsoft.AspNetCore.TestHost;
++using PalTracker;
++
++namespace PalTrackerTests
++{
++    public static class IntegrationTestServer
++    {
++        public static TestServer Start() =>
++            new TestServer(Program.WebHostBuilder(new string[] { }));
++    }
++}
+\ No newline at end of file
+diff --git a/test/PalTrackerTests/WelcomeControllerTest.cs b/test/PalTrackerTests/WelcomeControllerTest.cs
+new file mode 100644
+index 0000000..51c9ce8
+--- /dev/null
++++ b/test/PalTrackerTests/WelcomeControllerTest.cs
+@@ -0,0 +1,18 @@
++﻿using PalTracker;
++using Xunit;
++
++namespace PalTrackerTests
++{
++    public class WelcomeControllerTest
++    {
++        [Fact]
++        public void Get()
++        {
++            var message = new WelcomeMessage("hello from test");
++
++            var controller = new WelcomeController(message);
++
++            Assert.Equal("hello from test", controller.SayHello());
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/test/PalTrackerTests/WelcomeIntegrationTest.cs b/test/PalTrackerTests/WelcomeIntegrationTest.cs
+new file mode 100644
+index 0000000..07ddf88
+--- /dev/null
++++ b/test/PalTrackerTests/WelcomeIntegrationTest.cs
+@@ -0,0 +1,31 @@
++﻿using System;
++using System.Net.Http;
++using System.Threading.Tasks;
++using Xunit;
++
++namespace PalTrackerTests
++{
++    [Collection("Integration")]
++    public class WelcomeIntegrationTest
++    {
++        private readonly HttpClient _testClient;
++
++        public WelcomeIntegrationTest()
++        {
++            Environment.SetEnvironmentVariable("WELCOME_MESSAGE", "hello from integration test");
++            _testClient = IntegrationTestServer.Start().CreateClient();
++        }
++
++        [Fact]
++        public async Task ReturnsMessage()
++        {
++            var response = await _testClient.GetAsync("/");
++            response.EnsureSuccessStatusCode();
++
++            var expectedResponse = "hello from integration test";
++            var actualResponse = await response.Content.ReadAsStringAsync();
++
++            Assert.Equal(expectedResponse, actualResponse);
++        }
++    }
++}
+\ No newline at end of file
+-- 
+2.12.3
+

@@ -1,0 +1,187 @@
+From 19f4ca42a2e27b15d997f9ffda6d0458fe49c110 Mon Sep 17 00:00:00 2001
+From: Alex Sartan <asartan@pivotal.io>
+Date: Mon, 29 Jan 2018 15:06:31 -0700
+Subject: [PATCH 06/13] Deploy to multiple environments
+
+---
+ ci/build.yml                            | 15 ++++++--
+ ci/pipeline.yml                         | 66 +++++++++++++++++++++++++++++----
+ ci/variables.example.yml                |  3 ++
+ manifest.yml => manifest-production.yml |  4 +-
+ manifest-review.yml                     |  6 +++
+ 5 files changed, 81 insertions(+), 13 deletions(-)
+ rename manifest.yml => manifest-production.yml (88%)
+ create mode 100644 manifest-review.yml
+
+diff --git a/ci/build.yml b/ci/build.yml
+index f092a79..e83d5c4 100644
+--- a/ci/build.yml
++++ b/ci/build.yml
+@@ -8,6 +8,7 @@ image_resource:
+ 
+ inputs:
+   - name: pal-tracker
++  - name: version
+ 
+ outputs:
+   - name: build-output
+@@ -17,11 +18,17 @@ run:
+   args:
+   - -exc
+   - |
+-  
+-    mkdir -p build-output/src/PalTracker
+-    cp pal-tracker/manifest.yml build-output
++
++    home_path=$(pwd)
++    tmp_path=/tmp/pal-tracker
+     
++    mkdir -p $tmp_path
++    cp pal-tracker/manifest-*.yml $tmp_path
++
+     dotnet test ./pal-tracker/test/PalTrackerTests
+ 
+     dotnet publish ./pal-tracker/src/PalTracker --configuration Release \
+-      --output $(pwd)/build-output/src/PalTracker/bin/Release/netcoreapp2.0/publish
+\ No newline at end of file
++      --output $tmp_path/src/PalTracker/bin/Release/netcoreapp2.0/publish
++    
++    tar -C $tmp_path/ -cvzf ./build-output/pal-tracker-$(cat ./version/number).tgz .
++    
+\ No newline at end of file
+diff --git a/ci/pipeline.yml b/ci/pipeline.yml
+index 6b5a403..b846dcb 100644
+--- a/ci/pipeline.yml
++++ b/ci/pipeline.yml
+@@ -7,25 +7,77 @@ resources:
+     branch: master
+     private_key: {{github-private-key}}
+ 
+-- name: deploy
++- name: pal-tracker-artifacts
++  type: s3
++  source:
++    bucket: {{aws-bucket}}
++    regexp: releases/pal-tracker-(.*).tgz
++    access_key_id: {{aws-access-key-id}}
++    secret_access_key: {{aws-secret-access-key}}
++
++- name: version
++  type: semver
++  source:
++    bucket: {{aws-bucket}}
++    key: pal-tracker/version
++    access_key_id: {{aws-access-key-id}}
++    secret_access_key: {{aws-secret-access-key}}
++
++- name: review-deployment
++  type: cf
++  source:
++    api: {{cf-api-url}}
++    username: {{cf-username}}
++    password: {{cf-password}}
++    organization: {{cf-org}}
++    space: review
++
++- name: production-deployment
+   type: cf
+   source:
+     api: {{cf-api-url}}
+     username: {{cf-username}}
+     password: {{cf-password}}
+     organization: {{cf-org}}
+-    space: sandbox
++    space: production
+ 
+ jobs:
+-- name: build-and-deploy
++- name: build
+   plan:
+   - get: pal-tracker
+     trigger: true
++  - get: version
++    params: {bump: patch}
+   - task: build and test
+     file: pal-tracker/ci/build.yml
+-  - put: deploy
++  - put: pal-tracker-artifacts
++    params:
++      file: build-output/pal-tracker-*.tgz
++  - put: version
++    params:
++      file: version/number
++
++- name: deploy-review
++  plan:
++  - get: pal-tracker-artifacts
++    params: {unpack: true}
++    trigger: true
++    passed: [build]
++  - put: review-deployment
++    params:
++      manifest: pal-tracker-artifacts/manifest-review.yml
++      path: pal-tracker-artifacts
++      environment_variables:
++        WELCOME_MESSAGE: Hello from the review environment
++
++- name: deploy-production
++  plan:
++  - get: pal-tracker-artifacts
++    params: {unpack: true}
++    passed: [deploy-review]
++  - put: production-deployment
+     params:
+-      manifest: build-output/manifest.yml
+-      path: build-output
++      manifest: pal-tracker-artifacts/manifest-production.yml
++      path: pal-tracker-artifacts
+       environment_variables:
+-        WELCOME_MESSAGE: Hello from Concourse
++        WELCOME_MESSAGE: Hello from the production environment
+diff --git a/ci/variables.example.yml b/ci/variables.example.yml
+index a51f2b8..fd9b206 100644
+--- a/ci/variables.example.yml
++++ b/ci/variables.example.yml
+@@ -2,6 +2,9 @@ cf-api-url: CF_API_URL
+ cf-username: CF_USERNAME
+ cf-password: CF_PASSWORD
+ cf-org: CF_ORG
++aws-access-key-id: AWS_ACCESS_KEY
++aws-secret-access-key: AWS_SECRET_KEY
++aws-bucket: AWS_S3_BUCKET
+ github-repository: git@github.com:GITHUB_USERNAME/pal-tracker-dotnet.git
+ github-private-key: |
+   -----BEGIN RSA PRIVATE KEY-----
+diff --git a/manifest.yml b/manifest-production.yml
+similarity index 88%
+rename from manifest.yml
+rename to manifest-production.yml
+index 2b8232a..eab1acf 100644
+--- a/manifest.yml
++++ b/manifest-production.yml
+@@ -1,6 +1,6 @@
+ ---
+ applications:
+ - name: pal-tracker
+-  path: src/PalTracker/bin/Release/netcoreapp2.0/publish/
+   buildpack: https://github.com/cloudfoundry/dotnet-core-buildpack#v2.0.1
+-  random-route: true
+\ No newline at end of file
++  path: src/PalTracker/bin/Release/netcoreapp2.0/publish/
++  host: rf-pal-tracker
+\ No newline at end of file
+diff --git a/manifest-review.yml b/manifest-review.yml
+new file mode 100644
+index 0000000..63d439f
+--- /dev/null
++++ b/manifest-review.yml
+@@ -0,0 +1,6 @@
++---
++applications:
++- name: pal-tracker
++  buildpack: https://github.com/cloudfoundry/dotnet-core-buildpack#v2.0.1
++  path: src/PalTracker/bin/Release/netcoreapp2.0/publish/
++  host: rf-pal-tracker-review
+-- 
+2.12.3
+

@@ -1,0 +1,292 @@
+From 6910db919e3c466244c4520e9c2e971a72622870 Mon Sep 17 00:00:00 2001
+From: Alex Sartan <asartan@pivotal.io>
+Date: Wed, 31 Jan 2018 13:54:18 -0700
+Subject: [PATCH 11/13] Persist time entries in database
+
+---
+ ci/build.yml                                     | 16 +++++++
+ manifest-production.yml                          |  4 +-
+ manifest-review.yml                              |  2 +
+ src/PalTracker/MappingExtensions.cs              | 23 ++++++++++
+ src/PalTracker/MySqlTimeEntryRepository.cs       | 54 ++++++++++++++++++++++++
+ src/PalTracker/PalTracker.csproj                 |  3 ++
+ src/PalTracker/Program.cs                        |  2 +
+ src/PalTracker/Startup.cs                        |  4 +-
+ src/PalTracker/TimeEntryContext.cs               | 13 ++++++
+ src/PalTracker/TimeEntryRecord.cs                | 28 ++++++++++++
+ test/PalTrackerTests/TimeEntryIntegrationTest.cs |  3 ++
+ 11 files changed, 150 insertions(+), 2 deletions(-)
+ create mode 100644 src/PalTracker/MappingExtensions.cs
+ create mode 100644 src/PalTracker/MySqlTimeEntryRepository.cs
+ create mode 100644 src/PalTracker/TimeEntryContext.cs
+ create mode 100644 src/PalTracker/TimeEntryRecord.cs
+
+diff --git a/ci/build.yml b/ci/build.yml
+index e83d5c4..4f0bc02 100644
+--- a/ci/build.yml
++++ b/ci/build.yml
+@@ -19,6 +19,22 @@ run:
+   - -exc
+   - |
+ 
++    function stop_mysql {
++      service mysql stop
++    }
++
++    trap stop_mysql EXIT
++
++    export DEBIAN_FRONTEND="noninteractive"
++    apt-get update
++    apt-get -y install mysql-server
++    service mysql start
++
++    mysql -uroot < pal-tracker/databases/tracker/create_databases.sql
++
++    curl https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/4.2.0/flyway-commandline-4.2.0-linux-x64.tar.gz | tar xvz
++    flyway-*/flyway -url="jdbc:mysql://localhost:3306/tracker_test" -locations=filesystem:pal-tracker/databases/tracker -user=tracker -password=password clean migrate
++
+     home_path=$(pwd)
+     tmp_path=/tmp/pal-tracker
+     
+diff --git a/manifest-production.yml b/manifest-production.yml
+index eab1acf..de0f338 100644
+--- a/manifest-production.yml
++++ b/manifest-production.yml
+@@ -3,4 +3,6 @@ applications:
+ - name: pal-tracker
+   buildpack: https://github.com/cloudfoundry/dotnet-core-buildpack#v2.0.1
+   path: src/PalTracker/bin/Release/netcoreapp2.0/publish/
+-  host: rf-pal-tracker
+\ No newline at end of file
++  host: rf-pal-tracker
++  services:
++  - tracker-database
+diff --git a/manifest-review.yml b/manifest-review.yml
+index 63d439f..f77ec60 100644
+--- a/manifest-review.yml
++++ b/manifest-review.yml
+@@ -4,3 +4,5 @@ applications:
+   buildpack: https://github.com/cloudfoundry/dotnet-core-buildpack#v2.0.1
+   path: src/PalTracker/bin/Release/netcoreapp2.0/publish/
+   host: rf-pal-tracker-review
++  services:
++  - tracker-database
+diff --git a/src/PalTracker/MappingExtensions.cs b/src/PalTracker/MappingExtensions.cs
+new file mode 100644
+index 0000000..42076e0
+--- /dev/null
++++ b/src/PalTracker/MappingExtensions.cs
+@@ -0,0 +1,23 @@
++﻿namespace PalTracker
++{
++    public static class MappingExtensions
++    {
++        public static TimeEntry ToEntity(this TimeEntryRecord record) => new TimeEntry
++        {
++            Id = record.Id,
++            ProjectId = record.ProjectId,
++            UserId = record.UserId,
++            Date = record.Date,
++            Hours = record.Hours
++        };
++
++        public static TimeEntryRecord ToRecord(this TimeEntry entity) => new TimeEntryRecord
++        {
++            Id = entity.Id,
++            ProjectId = entity.ProjectId,
++            UserId = entity.UserId,
++            Date = entity.Date,
++            Hours = entity.Hours
++        };
++    }
++}
+\ No newline at end of file
+diff --git a/src/PalTracker/MySqlTimeEntryRepository.cs b/src/PalTracker/MySqlTimeEntryRepository.cs
+new file mode 100644
+index 0000000..7629183
+--- /dev/null
++++ b/src/PalTracker/MySqlTimeEntryRepository.cs
+@@ -0,0 +1,54 @@
++﻿using System.Collections.Generic;
++using System.Linq;
++using Microsoft.EntityFrameworkCore;
++
++namespace PalTracker
++{
++    public class MySqlTimeEntryRepository : ITimeEntryRepository
++    {
++        private readonly TimeEntryContext _context;
++
++        public MySqlTimeEntryRepository(TimeEntryContext context)
++        {
++            _context = context;
++        }
++
++        public TimeEntry Create(TimeEntry timeEntry)
++        {
++            var recordToCreate = timeEntry.ToRecord();
++
++            _context.TimeEntryRecords.Add(recordToCreate);
++            _context.SaveChanges();
++
++            return Find(recordToCreate.Id.Value);
++        }
++
++        public TimeEntry Find(long id) => FindRecord(id).ToEntity();
++
++        public bool Contains(long id) =>
++            _context.TimeEntryRecords.AsNoTracking().Any(t => t.Id == id);
++
++        public IEnumerable<TimeEntry> List() =>
++            _context.TimeEntryRecords.AsNoTracking().Select(t => t.ToEntity());
++
++        public TimeEntry Update(long id, TimeEntry timeEntry)
++        {
++            var recordToUpdate = timeEntry.ToRecord();
++            recordToUpdate.Id = id;
++
++            _context.Update(recordToUpdate);
++            _context.SaveChanges();
++
++            return Find(id);
++        }
++
++        public void Delete(long id)
++        {
++            _context.TimeEntryRecords.Remove(FindRecord(id));
++            _context.SaveChanges();
++        }
++
++        private TimeEntryRecord FindRecord(long id) =>
++            _context.TimeEntryRecords.AsNoTracking().Single(t => t.Id == id);
++    }
++}
+\ No newline at end of file
+diff --git a/src/PalTracker/PalTracker.csproj b/src/PalTracker/PalTracker.csproj
+index c37c258..ed5a0ed 100644
+--- a/src/PalTracker/PalTracker.csproj
++++ b/src/PalTracker/PalTracker.csproj
+@@ -7,6 +7,9 @@
+   </ItemGroup>
+   <ItemGroup>
+     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.3" />
++    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.0.1" />
++    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="2.0.1" />
++    <PackageReference Include="Steeltoe.CloudFoundry.Connector.EFCore" Version="2.0.0-rc1" />
+   </ItemGroup>
+   <ItemGroup>
+     <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="2.0.2" />
+diff --git a/src/PalTracker/Program.cs b/src/PalTracker/Program.cs
+index ecf683e..dbbbf0d 100644
+--- a/src/PalTracker/Program.cs
++++ b/src/PalTracker/Program.cs
+@@ -7,6 +7,7 @@ using Microsoft.AspNetCore;
+ using Microsoft.AspNetCore.Hosting;
+ using Microsoft.Extensions.Configuration;
+ using Microsoft.Extensions.Logging;
++using Steeltoe.Extensions.Configuration.CloudFoundry;
+ 
+ namespace PalTracker
+ {
+@@ -22,6 +23,7 @@ namespace PalTracker
+ 
+         public static IWebHostBuilder WebHostBuilder(string[] args) =>
+             WebHost.CreateDefaultBuilder(args)
++                .ConfigureAppConfiguration(config => config.AddCloudFoundry())
+                 .UseStartup<Startup>();
+     }
+ }
+diff --git a/src/PalTracker/Startup.cs b/src/PalTracker/Startup.cs
+index 8a78925..5b47ad3 100644
+--- a/src/PalTracker/Startup.cs
++++ b/src/PalTracker/Startup.cs
+@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
+ using Microsoft.Extensions.DependencyInjection;
+ using Microsoft.Extensions.Logging;
+ using Microsoft.Extensions.Options;
++using Steeltoe.CloudFoundry.Connector.MySql.EFCore;
+ 
+ namespace PalTracker
+ {
+@@ -36,7 +37,8 @@ namespace PalTracker
+                 Configuration.GetValue<string>("CF_INSTANCE_ADDR")
+             ));
+ 
+-            services.AddSingleton<ITimeEntryRepository, InMemoryTimeEntryRepository>();
++            services.AddScoped<ITimeEntryRepository, MySqlTimeEntryRepository>();
++            services.AddDbContext<TimeEntryContext>(options => options.UseMySql(Configuration));
+         }
+ 
+         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+diff --git a/src/PalTracker/TimeEntryContext.cs b/src/PalTracker/TimeEntryContext.cs
+new file mode 100644
+index 0000000..24a7858
+--- /dev/null
++++ b/src/PalTracker/TimeEntryContext.cs
+@@ -0,0 +1,13 @@
++﻿using Microsoft.EntityFrameworkCore;
++
++namespace PalTracker
++{
++    public class TimeEntryContext : DbContext
++    {
++        public TimeEntryContext(DbContextOptions options) : base(options)
++        {
++        }
++
++        public DbSet<TimeEntryRecord> TimeEntryRecords { get; set; }
++    }
++}
+\ No newline at end of file
+diff --git a/src/PalTracker/TimeEntryRecord.cs b/src/PalTracker/TimeEntryRecord.cs
+new file mode 100644
+index 0000000..5d563fc
+--- /dev/null
++++ b/src/PalTracker/TimeEntryRecord.cs
+@@ -0,0 +1,28 @@
++﻿using System;
++using System.ComponentModel.DataAnnotations.Schema;
++
++namespace PalTracker
++{
++    [Table("time_entries")]
++    public class TimeEntryRecord
++    {
++        [Column("id")]
++        public long? Id { get; set; }
++
++        [Column("project_id")]
++        public long ProjectId { get; set; }
++
++        [Column("user_id")]
++        public long UserId { get; set; }
++
++        [Column("date")]
++        public DateTime Date { get; set; }
++
++        [Column("hours")]
++        public int Hours { get; set; }
++
++        public TimeEntryRecord()
++        {
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/test/PalTrackerTests/TimeEntryIntegrationTest.cs b/test/PalTrackerTests/TimeEntryIntegrationTest.cs
+index 148ea00..a093c9a 100644
+--- a/test/PalTrackerTests/TimeEntryIntegrationTest.cs
++++ b/test/PalTrackerTests/TimeEntryIntegrationTest.cs
+@@ -17,6 +17,9 @@ namespace PalTrackerTests
+ 
+         public TimeEntryIntegrationTest()
+         {
++            Environment.SetEnvironmentVariable("VCAP_SERVICES", DbTestSupport.TestDbVcapJson);
++            DbTestSupport.ExecuteSql("TRUNCATE TABLE time_entries");
++
+             _testClient = IntegrationTestServer.Start().CreateClient();
+         }
+ 
+-- 
+2.12.3
+
