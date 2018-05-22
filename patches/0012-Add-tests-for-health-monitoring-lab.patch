@@ -1,4 +1,4 @@
-From 2bfae02f3d3e0460ec983460860d463cdcc372cd Mon Sep 17 00:00:00 2001
+From 3251d9ac8f1626fbf52db397d579d750688584cd Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Thu, 1 Feb 2018 15:50:37 -0700
 Subject: [PATCH 12/13] Add tests for health monitoring lab

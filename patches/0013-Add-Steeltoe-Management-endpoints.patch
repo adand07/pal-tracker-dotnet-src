@@ -1,4 +1,4 @@
-From 9e607be9d54e4b6014770deb5f0f2565a3fb61c6 Mon Sep 17 00:00:00 2001
+From 34541fc66bf40f0ea6280b32b5d2e9df6ac50c71 Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Thu, 1 Feb 2018 15:51:12 -0700
 Subject: [PATCH 13/13] Add Steeltoe Management endpoints
