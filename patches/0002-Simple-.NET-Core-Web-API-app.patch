@@ -1,4 +1,4 @@
-From f82a37641cc1f3d1674f97feefad1f3505f09388 Mon Sep 17 00:00:00 2001
+From ce387963729a4a83312a6a63b6da24d770027808 Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Fri, 26 Jan 2018 10:26:41 -0700
 Subject: [PATCH 02/13] Simple .NET Core Web API app
@@ -11,8 +11,8 @@ Subject: [PATCH 02/13] Simple .NET Core Web API app
  src/PalTracker/WelcomeController.cs         | 11 ++++++
  src/PalTracker/appsettings.Development.json | 10 ++++++
  src/PalTracker/appsettings.json             | 15 ++++++++
- test/PalTrackerTests/PalTrackerTests.csproj | 14 ++++++++
- 8 files changed, 187 insertions(+)
+ test/PalTrackerTests/PalTrackerTests.csproj | 15 ++++++++
+ 8 files changed, 188 insertions(+)
  create mode 100644 PalTracker.sln
  create mode 100644 src/PalTracker/PalTracker.csproj
  create mode 100644 src/PalTracker/Program.cs
@@ -240,13 +240,14 @@ index 0000000..26bb0ac
 +}
 diff --git a/test/PalTrackerTests/PalTrackerTests.csproj b/test/PalTrackerTests/PalTrackerTests.csproj
 new file mode 100644
-index 0000000..14023cc
+index 0000000..623067c
 --- /dev/null
 +++ b/test/PalTrackerTests/PalTrackerTests.csproj
-@@ -0,0 +1,14 @@
+@@ -0,0 +1,15 @@
 +﻿<Project Sdk="Microsoft.NET.Sdk">
 +  <PropertyGroup>
 +    <TargetFramework>netcoreapp2.0</TargetFramework>
++    <RuntimeFrameworkVersion>2.0.6</RuntimeFrameworkVersion>
 +    <IsPackable>false</IsPackable>
 +  </PropertyGroup>
 +  <ItemGroup>
