@@ -1,4 +1,4 @@
-From 03b0d7f41d0cc4730935f0d8a2925f408b272f7f Mon Sep 17 00:00:00 2001
+From e327985cd557b83b2bf51c724f83e1909fbb0b73 Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Wed, 31 Jan 2018 13:54:18 -0700
 Subject: [PATCH 11/13] Persist time entries in database
@@ -9,13 +9,13 @@ Subject: [PATCH 11/13] Persist time entries in database
  manifest-review.yml                              |  2 +
  src/PalTracker/MappingExtensions.cs              | 23 ++++++++++
  src/PalTracker/MySqlTimeEntryRepository.cs       | 54 ++++++++++++++++++++++++
- src/PalTracker/PalTracker.csproj                 |  3 ++
+ src/PalTracker/PalTracker.csproj                 | 34 ++++++++-------
  src/PalTracker/Program.cs                        |  2 +
  src/PalTracker/Startup.cs                        |  4 +-
  src/PalTracker/TimeEntryContext.cs               | 13 ++++++
  src/PalTracker/TimeEntryRecord.cs                | 28 ++++++++++++
  test/PalTrackerTests/TimeEntryIntegrationTest.cs |  3 ++
- 11 files changed, 150 insertions(+), 2 deletions(-)
+ 11 files changed, 165 insertions(+), 18 deletions(-)
  create mode 100644 src/PalTracker/MappingExtensions.cs
  create mode 100644 src/PalTracker/MySqlTimeEntryRepository.cs
  create mode 100644 src/PalTracker/TimeEntryContext.cs
@@ -163,19 +163,44 @@ index 0000000..7629183
 +}
 \ No newline at end of file
 diff --git a/src/PalTracker/PalTracker.csproj b/src/PalTracker/PalTracker.csproj
-index c37c258..fb7f0be 100644
+index ac7ae01..15ad7a8 100644
 --- a/src/PalTracker/PalTracker.csproj
 +++ b/src/PalTracker/PalTracker.csproj
-@@ -7,6 +7,9 @@
-   </ItemGroup>
-   <ItemGroup>
-     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.3" />
+@@ -1,16 +1,18 @@
+-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+-  <PropertyGroup>
+-    <TargetFramework>netcoreapp2.0</TargetFramework>
+-    <RuntimeFrameworkVersion>2.0.6</RuntimeFrameworkVersion>
+-  </PropertyGroup>
+-  <ItemGroup>
+-    <Folder Include="wwwroot\" />
+-  </ItemGroup>
+-  <ItemGroup>
+-    <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.3" />
+-  </ItemGroup>
+-  <ItemGroup>
+-    <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="2.0.2" />
+-  </ItemGroup>
+-</Project>
+-
++<Project Sdk="Microsoft.NET.Sdk.Web">
++  <PropertyGroup>
++    <TargetFramework>netcoreapp2.0</TargetFramework>
++    <RuntimeFrameworkVersion>2.0.6</RuntimeFrameworkVersion>
++  </PropertyGroup>
++  <ItemGroup>
++    <Folder Include="wwwroot\" />
++  </ItemGroup>
++  <ItemGroup>
++    <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.3" />
 +    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.0.1" />
 +    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="2.0.1" />
 +    <PackageReference Include="Steeltoe.CloudFoundry.Connector.EFCore" Version="2.0.0" />
-   </ItemGroup>
-   <ItemGroup>
-     <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="2.0.2" />
++  </ItemGroup>
++  <ItemGroup>
++    <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="2.0.2" />
++  </ItemGroup>
++</Project>
 diff --git a/src/PalTracker/Program.cs b/src/PalTracker/Program.cs
 index ecf683e..dbbbf0d 100644
 --- a/src/PalTracker/Program.cs

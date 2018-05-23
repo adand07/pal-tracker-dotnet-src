@@ -1,4 +1,4 @@
-From 34541fc66bf40f0ea6280b32b5d2e9df6ac50c71 Mon Sep 17 00:00:00 2001
+From 0f54f276b7aaf30c818c85c8aeb3f5c7c26e7ff2 Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Thu, 1 Feb 2018 15:51:12 -0700
 Subject: [PATCH 13/13] Add Steeltoe Management endpoints
@@ -79,10 +79,10 @@ index 0000000..1d5ac51
 +}
 \ No newline at end of file
 diff --git a/src/PalTracker/PalTracker.csproj b/src/PalTracker/PalTracker.csproj
-index fb7f0be..ee31423 100644
+index 15ad7a8..86d0401 100644
 --- a/src/PalTracker/PalTracker.csproj
 +++ b/src/PalTracker/PalTracker.csproj
-@@ -10,6 +10,7 @@
+@@ -11,6 +11,7 @@
      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.0.1" />
      <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="2.0.1" />
      <PackageReference Include="Steeltoe.CloudFoundry.Connector.EFCore" Version="2.0.0" />
