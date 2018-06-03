@@ -1,4 +1,4 @@
-From bcd76d6e766ff1a36d13fd31dd16ef7a8c403a02 Mon Sep 17 00:00:00 2001
+From 5cae228429331d59e91a39f4233ee78e1fcef0fe Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Wed, 31 Jan 2018 13:54:18 -0700
 Subject: [PATCH 11/13] Persist time entries in database
@@ -164,7 +164,7 @@ index 0000000..7629183
 +}
 \ No newline at end of file
 diff --git a/src/PalTracker/PalTracker.csproj b/src/PalTracker/PalTracker.csproj
-index 4d7ef9a..4852180 100644
+index 4d7ef9a..be729ba 100644
 --- a/src/PalTracker/PalTracker.csproj
 +++ b/src/PalTracker/PalTracker.csproj
 @@ -1,15 +1,17 @@
@@ -192,7 +192,7 @@ index 4d7ef9a..4852180 100644
 +  </ItemGroup>
 +  <ItemGroup>
 +    <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.7" />
-+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.0.1" />
++    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.0.3" />
 +    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="2.0.1" />
 +    <PackageReference Include="Steeltoe.CloudFoundry.Connector.EFCore" Version="2.0.0" />
 +  </ItemGroup>

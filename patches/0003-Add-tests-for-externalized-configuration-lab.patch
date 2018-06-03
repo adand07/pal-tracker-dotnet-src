@@ -1,4 +1,4 @@
-From 4833efb5402e8e75c9c2673296aef7c20682bf13 Mon Sep 17 00:00:00 2001
+From 433773bd06449424d4a06cc9f5466421076ad234 Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Fri, 26 Jan 2018 10:30:42 -0700
 Subject: [PATCH 03/13] Add tests for externalized configuration lab

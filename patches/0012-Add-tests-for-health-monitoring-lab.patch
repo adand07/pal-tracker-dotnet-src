@@ -1,4 +1,4 @@
-From 3c0d78e3ceabd3a39ddacf57f052b7f07782783b Mon Sep 17 00:00:00 2001
+From 0645dbbeaab053da8ba72bfef41b9c53efaa9f07 Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Thu, 1 Feb 2018 15:50:37 -0700
 Subject: [PATCH 12/13] Add tests for health monitoring lab
@@ -14,7 +14,7 @@ Subject: [PATCH 12/13] Add tests for health monitoring lab
 
 diff --git a/test/PalTrackerTests/ManagementIntegrationTest.cs b/test/PalTrackerTests/ManagementIntegrationTest.cs
 new file mode 100644
-index 0000000..b968829
+index 0000000..cf429d5
 --- /dev/null
 +++ b/test/PalTrackerTests/ManagementIntegrationTest.cs
 @@ -0,0 +1,40 @@
@@ -33,7 +33,7 @@ index 0000000..b968829
 +
 +        public ManagementIntegrationTest()
 +        {
-+            Environment.SetEnvironmentVariable("VCAP_SERVICES", DbTestSupport.TestDbVcapJson);
++            Environment.SetEnvironmentVariable("MYSQL__CLIENT__CONNECTIONSTRING", DbTestSupport.TestDbConnectionString);
 +            DbTestSupport.ExecuteSql("TRUNCATE TABLE time_entries");
 +            _testClient = IntegrationTestServer.Start().CreateClient();
 +        }
