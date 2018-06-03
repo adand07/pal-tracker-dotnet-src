@@ -1,18 +1,18 @@
-From ce387963729a4a83312a6a63b6da24d770027808 Mon Sep 17 00:00:00 2001
+From bb792cbd8c822861409c034f5f4f9f89a8206dd3 Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Fri, 26 Jan 2018 10:26:41 -0700
 Subject: [PATCH 02/13] Simple .NET Core Web API app
 
 ---
  PalTracker.sln                              | 56 +++++++++++++++++++++++++++++
- src/PalTracker/PalTracker.csproj            | 16 +++++++++
+ src/PalTracker/PalTracker.csproj            | 15 ++++++++
  src/PalTracker/Program.cs                   | 25 +++++++++++++
  src/PalTracker/Startup.cs                   | 40 +++++++++++++++++++++
  src/PalTracker/WelcomeController.cs         | 11 ++++++
  src/PalTracker/appsettings.Development.json | 10 ++++++
  src/PalTracker/appsettings.json             | 15 ++++++++
- test/PalTrackerTests/PalTrackerTests.csproj | 15 ++++++++
- 8 files changed, 188 insertions(+)
+ test/PalTrackerTests/PalTrackerTests.csproj | 14 ++++++++
+ 8 files changed, 186 insertions(+)
  create mode 100644 PalTracker.sln
  create mode 100644 src/PalTracker/PalTracker.csproj
  create mode 100644 src/PalTracker/Program.cs
@@ -86,20 +86,19 @@ index 0000000..654a593
 +EndGlobal
 diff --git a/src/PalTracker/PalTracker.csproj b/src/PalTracker/PalTracker.csproj
 new file mode 100644
-index 0000000..ac7ae01
+index 0000000..4d7ef9a
 --- /dev/null
 +++ b/src/PalTracker/PalTracker.csproj
-@@ -0,0 +1,16 @@
+@@ -0,0 +1,15 @@
 +﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 +  <PropertyGroup>
 +    <TargetFramework>netcoreapp2.0</TargetFramework>
-+    <RuntimeFrameworkVersion>2.0.6</RuntimeFrameworkVersion>
 +  </PropertyGroup>
 +  <ItemGroup>
 +    <Folder Include="wwwroot\" />
 +  </ItemGroup>
 +  <ItemGroup>
-+    <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.3" />
++    <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.7" />
 +  </ItemGroup>
 +  <ItemGroup>
 +    <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="2.0.2" />
@@ -240,14 +239,13 @@ index 0000000..26bb0ac
 +}
 diff --git a/test/PalTrackerTests/PalTrackerTests.csproj b/test/PalTrackerTests/PalTrackerTests.csproj
 new file mode 100644
-index 0000000..623067c
+index 0000000..5019634
 --- /dev/null
 +++ b/test/PalTrackerTests/PalTrackerTests.csproj
-@@ -0,0 +1,15 @@
+@@ -0,0 +1,14 @@
 +﻿<Project Sdk="Microsoft.NET.Sdk">
 +  <PropertyGroup>
 +    <TargetFramework>netcoreapp2.0</TargetFramework>
-+    <RuntimeFrameworkVersion>2.0.6</RuntimeFrameworkVersion>
 +    <IsPackable>false</IsPackable>
 +  </PropertyGroup>
 +  <ItemGroup>
@@ -259,7 +257,6 @@ index 0000000..623067c
 +    <ProjectReference Include="..\..\src\PalTracker\PalTracker.csproj" />
 +  </ItemGroup>
 +</Project>
-\ No newline at end of file
 -- 
 2.12.3
 

@@ -1,4 +1,4 @@
-From 0202a75313bfc2497bd6ca3277d44c1aab0cac34 Mon Sep 17 00:00:00 2001
+From 6329d4ae6e87d14fdc670e7305a0f41d7f383b7b Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Tue, 30 Jan 2018 13:37:42 -0700
 Subject: [PATCH 08/13] Add TimeEntry MVC in memory
@@ -197,10 +197,10 @@ index 0000000..e26d222
 +    }
 +}
 diff --git a/test/PalTrackerTests/PalTrackerTests.csproj b/test/PalTrackerTests/PalTrackerTests.csproj
-index 252448e..a7fc5ff 100644
+index 201081d..c0dce53 100644
 --- a/test/PalTrackerTests/PalTrackerTests.csproj
 +++ b/test/PalTrackerTests/PalTrackerTests.csproj
-@@ -7,6 +7,7 @@
+@@ -6,6 +6,7 @@
    <ItemGroup>
      <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="2.0.1" />
      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.3.0-preview-20170628-02" />

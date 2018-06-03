@@ -1,4 +1,4 @@
-From ff04ce86a924cc534fdf00d3242298da0d133a3e Mon Sep 17 00:00:00 2001
+From 56b8c8898da6863eb5f0e245f40117b5a6c6a2e6 Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Tue, 30 Jan 2018 16:51:40 -0700
 Subject: [PATCH 10/13] Add tests for Database lab
@@ -253,10 +253,10 @@ index 0000000..d881d17
 +}
 \ No newline at end of file
 diff --git a/test/PalTrackerTests/PalTrackerTests.csproj b/test/PalTrackerTests/PalTrackerTests.csproj
-index a7fc5ff..156afb9 100644
+index c0dce53..64fde60 100644
 --- a/test/PalTrackerTests/PalTrackerTests.csproj
 +++ b/test/PalTrackerTests/PalTrackerTests.csproj
-@@ -8,6 +8,7 @@
+@@ -7,6 +7,7 @@
      <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="2.0.1" />
      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.3.0-preview-20170628-02" />
      <PackageReference Include="Moq" Version="4.7.63" />
