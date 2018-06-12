@@ -1,4 +1,4 @@
-From 8e261d65d0c26d0400500af85488d71c0b6d8ad1 Mon Sep 17 00:00:00 2001
+From 17a0c3527257c18326b9edf20a0485e26b66fa89 Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Thu, 1 Feb 2018 15:51:12 -0700
 Subject: [PATCH 13/13] Add Steeltoe Management endpoints
@@ -7,13 +7,15 @@ Subject: [PATCH 13/13] Add Steeltoe Management endpoints
  src/PalTracker/IOperationCounter.cs             | 13 ++++++++++
  src/PalTracker/OperationCounter.cs              | 31 ++++++++++++++++++++++
  src/PalTracker/PalTracker.csproj                |  1 +
- src/PalTracker/Startup.cs                       | 20 ++++++++++++++-
+ src/PalTracker/Program.cs                       |  6 +++++
+ src/PalTracker/Startup.cs                       | 34 +++++++++++++++++++++++++
  src/PalTracker/TimeEntryController.cs           | 14 +++++++++-
  src/PalTracker/TimeEntryHealthContributor.cs    | 34 +++++++++++++++++++++++++
  src/PalTracker/TimeEntryInfoContributor.cs      | 22 ++++++++++++++++
  src/PalTracker/TrackedOperation.cs              | 11 ++++++++
+ src/PalTracker/appsettings.json                 |  5 ++++
  test/PalTrackerTests/TimeEntryControllerTest.cs | 14 +++++++++-
- 9 files changed, 157 insertions(+), 3 deletions(-)
+ 11 files changed, 183 insertions(+), 2 deletions(-)
  create mode 100644 src/PalTracker/IOperationCounter.cs
  create mode 100644 src/PalTracker/OperationCounter.cs
  create mode 100644 src/PalTracker/TimeEntryHealthContributor.cs
@@ -90,8 +92,32 @@ index be729ba..a2a8fd8 100644
    </ItemGroup>
    <ItemGroup>
      <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="2.0.2" />
+diff --git a/src/PalTracker/Program.cs b/src/PalTracker/Program.cs
+index dbbbf0d..dc63a93 100644
+--- a/src/PalTracker/Program.cs
++++ b/src/PalTracker/Program.cs
+@@ -7,6 +7,7 @@ using Microsoft.AspNetCore;
+ using Microsoft.AspNetCore.Hosting;
+ using Microsoft.Extensions.Configuration;
+ using Microsoft.Extensions.Logging;
++using Steeltoe.Extensions.Logging;
+ using Steeltoe.Extensions.Configuration.CloudFoundry;
+ 
+ namespace PalTracker
+@@ -24,6 +25,11 @@ namespace PalTracker
+         public static IWebHostBuilder WebHostBuilder(string[] args) =>
+             WebHost.CreateDefaultBuilder(args)
+                 .ConfigureAppConfiguration(config => config.AddCloudFoundry())
++                .ConfigureLogging((builderContext, loggingBuilder) =>
++                {
++                    // Add Steeltoe dynamic console logger
++                    loggingBuilder.AddDynamicConsole();
++                })
+                 .UseStartup<Startup>();
+     }
+ }
 diff --git a/src/PalTracker/Startup.cs b/src/PalTracker/Startup.cs
-index 5b47ad3..3bf92dd 100644
+index 5b47ad3..c5eaea8 100644
 --- a/src/PalTracker/Startup.cs
 +++ b/src/PalTracker/Startup.cs
 @@ -9,6 +9,12 @@ using Microsoft.Extensions.DependencyInjection;
@@ -120,21 +146,35 @@ index 5b47ad3..3bf92dd 100644
          }
  
          // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-@@ -50,6 +62,12 @@ namespace PalTracker
+@@ -50,6 +62,28 @@ namespace PalTracker
              }
  
              app.UseMvc();
 +
-+            app.UseCloudFoundryActuator();
-+            app.UseInfoActuator();
-+            app.UseHealthActuator();
-+            app.UseLoggersActuator();
-+            app.UseTraceActuator();
++            if (Configuration.GetValue("DISABLE_AUTH", false))
++            {
++                // There is no easy way to turn off
++                // OAuth based security so for the sake
++                // of the assignment submission just
++                // work around it.
++                // Feature request:
++                // https://github.com/SteeltoeOSS/Management/issues/6
++                app.UseCloudFoundryActuator();
++                app.UseInfoActuator();
++                app.UseHealthActuator();
++                app.UseLoggersActuator();
++                app.UseTraceActuator();
++            }
++            else
++            {
++                // Add management endpoints into pipeline
++                // and integrate with Apps Manager.
++                // See: https://steeltoe.io/docs/steeltoe-management/#1-2-9-cloud-foundry
++                app.UseCloudFoundryActuators();
++            }
          }
      }
--}
-+}
-\ No newline at end of file
+ }
 diff --git a/src/PalTracker/TimeEntryController.cs b/src/PalTracker/TimeEntryController.cs
 index e26d222..c40c348 100644
 --- a/src/PalTracker/TimeEntryController.cs
@@ -281,6 +321,21 @@ index 0000000..eef5260
 +    }
 +}
 \ No newline at end of file
+diff --git a/src/PalTracker/appsettings.json b/src/PalTracker/appsettings.json
+index f600551..3f57353 100644
+--- a/src/PalTracker/appsettings.json
++++ b/src/PalTracker/appsettings.json
+@@ -16,5 +16,10 @@
+     "client": {
+       "ConnectionString": "Server=localhost;Database=tracker_dotnet_dev;Uid=tracker_dotnet;Pwd=password;"
+     }
++  },
++  "management": {
++    "endpoints": {
++      "path": "/cloudfoundryapplication"
++    }
+   }
+ }
 diff --git a/test/PalTrackerTests/TimeEntryControllerTest.cs b/test/PalTrackerTests/TimeEntryControllerTest.cs
 index 772736d..f57d795 100644
 --- a/test/PalTrackerTests/TimeEntryControllerTest.cs
