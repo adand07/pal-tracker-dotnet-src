@@ -1,13 +1,12 @@
-From 2e1c41b71fc89b42798ae958b2d738236ca313db Mon Sep 17 00:00:00 2001
-From: Alex Sartan <asartan@pivotal.io>
-Date: Tue, 30 Jan 2018 16:51:40 -0700
+From daaf1b0235fdb7448315e56a687c07d52c269924 Mon Sep 17 00:00:00 2001
+From: Mike Gehard <mgehard@pivotal.io>
+Date: Wed, 13 Jun 2018 09:14:20 -0600
 Subject: [PATCH 10/13] Add tests for Database lab
 
 ---
  test/PalTrackerTests/DbTestSupport.cs              |  46 ++++++
  .../MySqlTimeEntryRepositoryTest.cs                | 181 +++++++++++++++++++++
- test/PalTrackerTests/PalTrackerTests.csproj        |   1 +
- 3 files changed, 228 insertions(+)
+ 2 files changed, 227 insertions(+)
  create mode 100644 test/PalTrackerTests/DbTestSupport.cs
  create mode 100644 test/PalTrackerTests/MySqlTimeEntryRepositoryTest.cs
 
@@ -252,18 +251,6 @@ index 0000000..d881d17
 +    }
 +}
 \ No newline at end of file
-diff --git a/test/PalTrackerTests/PalTrackerTests.csproj b/test/PalTrackerTests/PalTrackerTests.csproj
-index c0dce53..64fde60 100644
---- a/test/PalTrackerTests/PalTrackerTests.csproj
-+++ b/test/PalTrackerTests/PalTrackerTests.csproj
-@@ -7,6 +7,7 @@
-     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="2.0.1" />
-     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.3.0-preview-20170628-02" />
-     <PackageReference Include="Moq" Version="4.7.63" />
-+    <PackageReference Include="Steeltoe.CloudFoundry.Connector.EFCore" Version="2.0.0" />
-     <PackageReference Include="xunit" Version="2.2.0" />
-     <PackageReference Include="xunit.runner.visualstudio" Version="2.2.0" />
-   </ItemGroup>
 -- 
 2.12.3
 
