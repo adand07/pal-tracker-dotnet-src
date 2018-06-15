@@ -1,12 +1,12 @@
-From 28786d8a1f5dde3d99693c07a920f2c59ddc0436 Mon Sep 17 00:00:00 2001
+From 23084eff47e38d19ce6d28f4c9f0805c125a758c Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Thu, 25 Jan 2018 09:32:15 -0700
-Subject: [PATCH 01/13] Initial commit
+Subject: [PATCH 01/14] Initial commit
 
 ---
- .gitignore      | 32 +++++++++++++++++++++
- grh-config.json | 86 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 118 insertions(+)
+ .gitignore      | 32 ++++++++++++++++++++
+ grh-config.json | 91 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 123 insertions(+)
  create mode 100644 .gitignore
  create mode 100644 grh-config.json
 
@@ -50,10 +50,10 @@ index 0000000..b268996
 +ci/variables.yml
 diff --git a/grh-config.json b/grh-config.json
 new file mode 100644
-index 0000000..ad45d27
+index 0000000..14b1539
 --- /dev/null
 +++ b/grh-config.json
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,91 @@
 +{
 +  "branchToRevise": "solution",
 +  "incrementCommits": [
@@ -82,15 +82,20 @@ index 0000000..ad45d27
 +      ]
 +    },
 +    {
-+      "message": "Add migrations",
++      "message": "Add migrations and migrate environments",
 +      "tags": [
 +        "migration-solution"
 +      ]
 +    },
 +    {
++      "message": "Add in build script to migrate databases",
++      "tags": [
++        "migration-start"
++      ]
++    },
++    {
 +      "message": "Add TimeEntry MVC in memory",
 +      "tags": [
-+        "migration-start",
 +        "mvc-solution"
 +      ]
 +    },
@@ -109,14 +114,12 @@ index 0000000..ad45d27
 +    {
 +      "message": "Add deployment pipeline",
 +      "tags": [
-+        "pipeline-start",
-+        "concourse-solution"
++        "pipeline-start"
 +      ]
 +    },
 +    {
 +      "message": "Add manifest file for deployment to PCF",
 +      "tags": [
-+        "concourse-start",
 +        "externalized-config-solution"
 +      ]
 +    },
@@ -140,6 +143,9 @@ index 0000000..ad45d27
 +    }
 +  ]
 +}
++
++  
+\ No newline at end of file
 -- 
 2.12.3
 

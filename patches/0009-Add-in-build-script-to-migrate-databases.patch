@@ -1,0 +1,42 @@
+From 94f9b15793759e799bcc38cecb85205874d3a6b1 Mon Sep 17 00:00:00 2001
+From: Mike Gehard <mgehard@pivotal.io>
+Date: Fri, 15 Jun 2018 13:19:54 -0600
+Subject: [PATCH 09/14] Add in build script to migrate databases
+
+---
+ scripts/migrate-databases.sh | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+ create mode 100755 scripts/migrate-databases.sh
+
+diff --git a/scripts/migrate-databases.sh b/scripts/migrate-databases.sh
+new file mode 100755
+index 0000000..d09bbce
+--- /dev/null
++++ b/scripts/migrate-databases.sh
+@@ -0,0 +1,23 @@
++#!/usr/bin/env bash
++set -e
++
++
++app_guid=`cf app $1 --guid`
++credentials=`cf curl /v2/apps/$app_guid/env | jq '.system_env_json.VCAP_SERVICES' | jq '.["p-mysql"][0].credentials'`
++
++ip_address=`echo $credentials | jq -r '.hostname'`
++db_name=`echo $credentials | jq -r '.name'`
++db_username=`echo $credentials | jq -r '.username'`
++db_password=`echo $credentials | jq -r '.password'`
++
++echo "Opening ssh tunnel to $ip_address"
++cf ssh -N -L 63306:$ip_address:3306 pal-tracker &
++cf_ssh_pid=$!
++
++echo "Waiting for tunnel"
++sleep 5
++
++# Passing this in as a param is a bit strage. Maybe put flyway on the path?
++$3/flyway-*/flyway -url="jdbc:mysql://127.0.0.1:63306/$db_name" -locations=filesystem:$2/databases/tracker -user=$db_username -password=$db_password migrate
++
++kill -STOP $cf_ssh_pid
+-- 
+2.12.3
+

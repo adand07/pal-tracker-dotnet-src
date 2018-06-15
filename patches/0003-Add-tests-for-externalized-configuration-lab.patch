@@ -1,7 +1,7 @@
-From 433773bd06449424d4a06cc9f5466421076ad234 Mon Sep 17 00:00:00 2001
+From 22863f770fc2dab731f9e09e1a3a81d845fbabad Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Fri, 26 Jan 2018 10:30:42 -0700
-Subject: [PATCH 03/13] Add tests for externalized configuration lab
+Subject: [PATCH 03/14] Add tests for externalized configuration lab
 
 ---
  test/PalTrackerTests/EnvControllerTest.cs      | 28 ++++++++++++++++++++

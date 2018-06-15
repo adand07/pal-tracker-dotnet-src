@@ -1,7 +1,7 @@
-From ea3ed2a22680224a452cdb67174eb856382fe8db Mon Sep 17 00:00:00 2001
+From 2f6163448faed5b5a8113310b06cb3845f6883ef Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Tue, 30 Jan 2018 10:58:14 -0700
-Subject: [PATCH 07/13] Add tests for MVC lab
+Subject: [PATCH 07/14] Add tests for MVC lab
 
 ---
  .../InMemoryTimeEntryRepositoryTest.cs             |  88 ++++++++++++

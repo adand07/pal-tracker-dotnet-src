@@ -1,0 +1,147 @@
+From f25625648663edc896c5c67e2b5c4bdf8e7380a5 Mon Sep 17 00:00:00 2001
+From: Mike Gehard <mgehard@pivotal.io>
+Date: Fri, 15 Jun 2018 13:20:23 -0600
+Subject: [PATCH 10/14] Add migrations and migrate environments
+
+---
+ .circleci/config.yml                               | 42 ++++++++++++++++++++++
+ databases/tracker/create_databases.sql             | 10 ++++++
+ .../tracker/migrations/V1__initial_schema.sql      | 11 ++++++
+ scripts/build.sh                                   |  2 ++
+ 4 files changed, 65 insertions(+)
+ create mode 100644 databases/tracker/create_databases.sql
+ create mode 100644 databases/tracker/migrations/V1__initial_schema.sql
+
+diff --git a/.circleci/config.yml b/.circleci/config.yml
+index 3419177..68a4eb7 100644
+--- a/.circleci/config.yml
++++ b/.circleci/config.yml
+@@ -8,6 +8,28 @@ jobs:
+     steps:
+       - checkout
+       - run:
++          # May be able to use another docker container for this??
++          name: Install MySQL
++          command: |
++            apt-get update
++            apt-get -y install mysql-server
++            service mysql start
++
++            # Wait for MySQL to start
++            sleep 5
++
++      - run:
++          name: Install flyway
++          command: |
++            curl https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/5.1.1/flyway-commandline-5.1.1-linux-x64.tar.gz | tar xvz
++
++      - run:
++          name: Create test database and migrate
++          command: |
++            mysql -uroot < databases/tracker/create_databases.sql
++            flyway-*/flyway -url="jdbc:mysql://localhost:3306/tracker_dotnet_test" -locations=filesystem:databases/tracker -user=tracker_dotnet -password=password clean migrate
++
++      - run:
+           name: Test and build
+           command: |
+             ./scripts/build.sh
+@@ -41,6 +63,16 @@ jobs:
+             apt-get install cf-cli
+ 
+       - run:
++          name: Install jq
++          command: |
++            apt-get -y install jq
++
++      - run:
++          name: Install flyway
++          command: |
++            curl https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/5.1.1/flyway-commandline-5.1.1-linux-x64.tar.gz | tar xvz
++
++      - run:
+           name: Unzip artifacts
+           command: |
+             mkdir -p $EXTRACT_DEST
+@@ -53,6 +85,7 @@ jobs:
+ 
+             cf login -a $CF_API -u $CF_USERNAME -p $CF_PASSWORD -o $CF_ORG -s $ENVIRONMENT
+             cf push -f manifest-$ENVIRONMENT.yml
++            ./migrate-databases.sh pal-tracker . /root/project
+ 
+   deployToProd:
+     docker:
+@@ -73,8 +106,16 @@ jobs:
+             echo "deb https://packages.cloudfoundry.org/debian stable main" | tee /etc/apt/sources.list.d/cloudfoundry-cli.list
+             apt-get update
+             apt-get install cf-cli
++      - run:
++          name: Install jq
++          command: |
++            apt-get -y install jq
+ 
+       - run:
++          name: Install flyway
++          command: |
++            curl https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/5.1.1/flyway-commandline-5.1.1-linux-x64.tar.gz | tar xvz
++      - run:
+           name: Unzip artifacts
+           command: |
+             mkdir -p $EXTRACT_DEST
+@@ -87,6 +128,7 @@ jobs:
+ 
+             cf login -a $CF_API -u $CF_USERNAME -p $CF_PASSWORD -o $CF_ORG -s $ENVIRONMENT
+             cf push -f manifest-$ENVIRONMENT.yml
++            ./migrate-databases.sh pal-tracker . /root/project
+ 
+ workflows:
+   version: 2
+diff --git a/databases/tracker/create_databases.sql b/databases/tracker/create_databases.sql
+new file mode 100644
+index 0000000..d24ce6f
+--- /dev/null
++++ b/databases/tracker/create_databases.sql
+@@ -0,0 +1,10 @@
++DROP DATABASE IF EXISTS tracker_dotnet_dev;
++DROP DATABASE IF EXISTS tracker_dotnet_test;
++
++CREATE DATABASE tracker_dotnet_dev;
++CREATE DATABASE tracker_dotnet_test;
++
++CREATE USER IF NOT EXISTS 'tracker_dotnet'@'localhost'
++  IDENTIFIED BY 'password';
++GRANT ALL PRIVILEGES ON tracker_dotnet_dev.* TO 'tracker_dotnet'@'localhost';
++GRANT ALL PRIVILEGES ON tracker_dotnet_test.* TO 'tracker_dotnet'@'localhost';
+diff --git a/databases/tracker/migrations/V1__initial_schema.sql b/databases/tracker/migrations/V1__initial_schema.sql
+new file mode 100644
+index 0000000..daca8c4
+--- /dev/null
++++ b/databases/tracker/migrations/V1__initial_schema.sql
+@@ -0,0 +1,11 @@
++CREATE TABLE time_entries (
++  id         BIGINT(20) NOT NULL AUTO_INCREMENT,
++  project_id BIGINT(20),
++  user_id    BIGINT(20),
++  date       DATE,
++  hours      INT,
++
++  PRIMARY KEY (id)
++)
++  ENGINE = innodb
++  DEFAULT CHARSET = utf8;
+\ No newline at end of file
+diff --git a/scripts/build.sh b/scripts/build.sh
+index c25323e..91cfc56 100755
+--- a/scripts/build.sh
++++ b/scripts/build.sh
+@@ -11,6 +11,8 @@ mkdir -p $build_output
+ mkdir -p $artifacts_path
+ 
+ cp manifest-*.yml $build_output
++cp scripts/migrate-databases.sh $build_output
++cp -r databases $build_output
+ 
+ dotnet publish src/PalTracker --configuration Release \
+     --output $build_output/src/PalTracker/bin/Release/netcoreapp2.0/publish
+-- 
+2.12.3
+

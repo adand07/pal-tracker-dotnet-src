@@ -1,0 +1,197 @@
+From 54ebf15e17947e5c103b82d9953ca7ad5a9e5a61 Mon Sep 17 00:00:00 2001
+From: Alex Sartan <asartan@pivotal.io>
+Date: Thu, 1 Feb 2018 15:50:37 -0700
+Subject: [PATCH 13/14] Add tests for health monitoring lab
+
+---
+ test/PalTrackerTests/ManagementIntegrationTest.cs  | 40 ++++++++++++
+ test/PalTrackerTests/OperationCounterTest.cs       | 45 +++++++++++++
+ .../TimeEntryHealthContributorTest.cs              | 74 ++++++++++++++++++++++
+ 3 files changed, 159 insertions(+)
+ create mode 100644 test/PalTrackerTests/ManagementIntegrationTest.cs
+ create mode 100644 test/PalTrackerTests/OperationCounterTest.cs
+ create mode 100644 test/PalTrackerTests/TimeEntryHealthContributorTest.cs
+
+diff --git a/test/PalTrackerTests/ManagementIntegrationTest.cs b/test/PalTrackerTests/ManagementIntegrationTest.cs
+new file mode 100644
+index 0000000..cf429d5
+--- /dev/null
++++ b/test/PalTrackerTests/ManagementIntegrationTest.cs
+@@ -0,0 +1,40 @@
++﻿using System;
++using System.Net;
++using System.Net.Http;
++using Newtonsoft.Json.Linq;
++using Xunit;
++
++namespace PalTrackerTests
++{
++    [Collection("Integration")]
++    public class ManagementIntegrationTest
++    {
++        private readonly HttpClient _testClient;
++
++        public ManagementIntegrationTest()
++        {
++            Environment.SetEnvironmentVariable("MYSQL__CLIENT__CONNECTIONSTRING", DbTestSupport.TestDbConnectionString);
++            DbTestSupport.ExecuteSql("TRUNCATE TABLE time_entries");
++            _testClient = IntegrationTestServer.Start().CreateClient();
++        }
++
++        [Fact]
++        public void HasHealth()
++        {
++            var response = _testClient.GetAsync("/health").Result;
++            var responseBody = JObject.Parse(response.Content.ReadAsStringAsync().Result);
++
++            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
++            Assert.Equal("UP", responseBody["status"]);
++            Assert.Equal("UP", responseBody["diskSpace"]["status"]);
++            Assert.Equal("UP", responseBody["timeEntry"]["status"]);
++        }
++
++        [Fact]
++        public void HasInfo()
++        {
++            var response = _testClient.GetAsync("/info").Result;
++            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/test/PalTrackerTests/OperationCounterTest.cs b/test/PalTrackerTests/OperationCounterTest.cs
+new file mode 100644
+index 0000000..decb802
+--- /dev/null
++++ b/test/PalTrackerTests/OperationCounterTest.cs
+@@ -0,0 +1,45 @@
++﻿using System.Collections.Generic;
++using PalTracker;
++using Xunit;
++
++namespace PalTrackerTests
++{
++    public class OperationCounterTest
++    {
++        private readonly OperationCounter<TimeEntry> _counter;
++
++        public OperationCounterTest()
++        {
++            _counter = new OperationCounter<TimeEntry>();
++        }
++
++        [Fact]
++        public void Increment()
++        {
++            var exepectedCounts = new Dictionary<TrackedOperation, int>
++            {
++                {TrackedOperation.Create, 0},
++                {TrackedOperation.Read, 3},
++                {TrackedOperation.List, 1},
++                {TrackedOperation.Update, 7},
++                {TrackedOperation.Delete, 3}
++            };
++
++            foreach (var entry in exepectedCounts)
++            {
++                for (var i = 0; i < entry.Value; i++)
++                {
++                    _counter.Increment(entry.Key);
++                }
++            }
++
++            Assert.Equal(exepectedCounts, _counter.GetCounts);
++        }
++
++        [Fact]
++        public void Name()
++        {
++            Assert.Equal("TimeEntryOperations", _counter.Name);
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/test/PalTrackerTests/TimeEntryHealthContributorTest.cs b/test/PalTrackerTests/TimeEntryHealthContributorTest.cs
+new file mode 100644
+index 0000000..90cdadd
+--- /dev/null
++++ b/test/PalTrackerTests/TimeEntryHealthContributorTest.cs
+@@ -0,0 +1,74 @@
++﻿using System.Collections.Generic;
++using System.Linq;
++using Moq;
++using PalTracker;
++using Xunit;
++using static PalTracker.TimeEntryHealthContributor;
++using static Steeltoe.Management.Endpoint.Health.HealthStatus;
++
++namespace PalTrackerTests
++{
++    public class TimeEntryHealthContributorTest
++    {
++        private readonly TimeEntryHealthContributor _contributor;
++        private readonly Mock<ITimeEntryRepository> _repository;
++
++        public TimeEntryHealthContributorTest()
++        {
++            _repository = new Mock<ITimeEntryRepository>();
++            _contributor = new TimeEntryHealthContributor(_repository.Object);
++        }
++
++        [Fact]
++        public void Health_StatusUp_WhenBelowThreshold()
++        {
++            const int timeEntryCount = MaxTimeEntries - 1;
++
++            _repository.Setup(r => r.List())
++                .Returns(MakeTimeEntries(timeEntryCount));
++
++            Assert.Equal(UP, _contributor.Health().Status);
++            Assert.Equal(MaxTimeEntries, _contributor.Health().Details["threshold"]);
++            Assert.Equal(timeEntryCount, _contributor.Health().Details["count"]);
++            Assert.Equal("UP", _contributor.Health().Details["status"]);
++        }
++
++        [Fact]
++        public void Health_StatusDown_WhenAtThreshold()
++        {
++            const int timeEntryCount = MaxTimeEntries;
++
++            _repository.Setup(r => r.List())
++                .Returns(MakeTimeEntries(timeEntryCount));
++
++            Assert.Equal(DOWN, _contributor.Health().Status);
++            Assert.Equal(MaxTimeEntries, _contributor.Health().Details["threshold"]);
++            Assert.Equal(timeEntryCount, _contributor.Health().Details["count"]);
++            Assert.Equal("DOWN", _contributor.Health().Details["status"]);
++        }
++
++        [Fact]
++        public void Health_StatusDown_WhenAboveThreshold()
++        {
++            const int timeEntryCount = MaxTimeEntries + 1;
++
++            _repository.Setup(r => r.List())
++                .Returns(MakeTimeEntries(timeEntryCount));
++
++            Assert.Equal(DOWN, _contributor.Health().Status);
++            Assert.Equal(MaxTimeEntries, _contributor.Health().Details["threshold"]);
++            Assert.Equal(timeEntryCount, _contributor.Health().Details["count"]);
++            Assert.Equal("DOWN", _contributor.Health().Details["status"]);
++        }
++
++        [Fact]
++        public void Id()
++        {
++            Assert.Equal("timeEntry", _contributor.Id);
++        }
++
++
++        private static IEnumerable<TimeEntry> MakeTimeEntries(int count) =>
++            Enumerable.Range(0, count).Select(x => new TimeEntry());
++    }
++}
+\ No newline at end of file
+-- 
+2.12.3
+

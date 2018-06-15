@@ -1,7 +1,7 @@
-From 43bbaee27d0b169547b62ec0f0aa28581cf8cae3 Mon Sep 17 00:00:00 2001
+From 1df1dc8ed3c518dec1a100e8806b72ae7d8ae787 Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Fri, 26 Jan 2018 13:41:36 -0700
-Subject: [PATCH 04/13] Add manifest file for deployment to PCF
+Subject: [PATCH 04/14] Add manifest file for deployment to PCF
 
 ---
  manifest.yml                                |  7 +++++++

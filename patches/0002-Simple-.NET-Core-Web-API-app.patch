@@ -1,7 +1,7 @@
-From ef9d702ff042bc0d3dd800c545b57135f9e24628 Mon Sep 17 00:00:00 2001
+From a687a7f564c4c506c7ae984b1a975cdbc6f55801 Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Fri, 26 Jan 2018 10:26:41 -0700
-Subject: [PATCH 02/13] Simple .NET Core Web API app
+Subject: [PATCH 02/14] Simple .NET Core Web API app
 
 ---
  PalTracker.sln                              | 56 +++++++++++++++++++++++++++++
