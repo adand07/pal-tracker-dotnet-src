@@ -1,9 +1,10 @@
-From d136906c9e3ab94f1fcf95037cb04baa2da0363d Mon Sep 17 00:00:00 2001
+From 935b16f02c93ffe0a832023a03a456a07dc3d72f Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Wed, 31 Jan 2018 13:54:18 -0700
 Subject: [PATCH 12/14] Persist time entries in database
 
 ---
+ .circleci/config.yml                             | 22 ++++++++++
  src/PalTracker/MappingExtensions.cs              | 23 ++++++++++
  src/PalTracker/MySqlTimeEntryRepository.cs       | 54 ++++++++++++++++++++++++
  src/PalTracker/PalTracker.csproj                 | 32 +++++++-------
@@ -13,12 +14,45 @@ Subject: [PATCH 12/14] Persist time entries in database
  src/PalTracker/TimeEntryRecord.cs                | 28 ++++++++++++
  src/PalTracker/appsettings.json                  |  5 +++
  test/PalTrackerTests/TimeEntryIntegrationTest.cs |  3 ++
- 9 files changed, 148 insertions(+), 16 deletions(-)
+ 10 files changed, 170 insertions(+), 16 deletions(-)
  create mode 100644 src/PalTracker/MappingExtensions.cs
  create mode 100644 src/PalTracker/MySqlTimeEntryRepository.cs
  create mode 100644 src/PalTracker/TimeEntryContext.cs
  create mode 100644 src/PalTracker/TimeEntryRecord.cs
 
+diff --git a/.circleci/config.yml b/.circleci/config.yml
+index 61480e1..68a4eb7 100644
+--- a/.circleci/config.yml
++++ b/.circleci/config.yml
+@@ -8,6 +8,28 @@ jobs:
+     steps:
+       - checkout
+       - run:
++          # May be able to use another docker container for this??
++          name: Install MySQL
++          command: |
++            apt-get update
++            apt-get -y install mysql-server
++            service mysql start
++
++            # Wait for MySQL to start
++            sleep 5
++
++      - run:
++          name: Install flyway
++          command: |
++            curl https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/5.1.1/flyway-commandline-5.1.1-linux-x64.tar.gz | tar xvz
++
++      - run:
++          name: Create test database and migrate
++          command: |
++            mysql -uroot < databases/tracker/create_databases.sql
++            flyway-*/flyway -url="jdbc:mysql://localhost:3306/tracker_dotnet_test" -locations=filesystem:databases/tracker -user=tracker_dotnet -password=password clean migrate
++
++      - run:
+           name: Test and build
+           command: |
+             ./scripts/build.sh
 diff --git a/src/PalTracker/MappingExtensions.cs b/src/PalTracker/MappingExtensions.cs
 new file mode 100644
 index 0000000..42076e0
