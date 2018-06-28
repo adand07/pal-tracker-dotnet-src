@@ -1,13 +1,17 @@
-From 23084eff47e38d19ce6d28f4c9f0805c125a758c Mon Sep 17 00:00:00 2001
+From 8c8ec1b45699274e3c67a50c5683ec76769ea2a3 Mon Sep 17 00:00:00 2001
 From: Alex Sartan <asartan@pivotal.io>
 Date: Thu, 25 Jan 2018 09:32:15 -0700
 Subject: [PATCH 01/14] Initial commit
 
 ---
- .gitignore      | 32 ++++++++++++++++++++
- grh-config.json | 91 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 123 insertions(+)
+ .gitignore                   | 32 ++++++++++++++++
+ Directory.Build.targets      |  5 +++
+ after.PalTracker.sln.targets |  5 +++
+ grh-config.json              | 91 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 133 insertions(+)
  create mode 100644 .gitignore
+ create mode 100644 Directory.Build.targets
+ create mode 100644 after.PalTracker.sln.targets
  create mode 100644 grh-config.json
 
 diff --git a/.gitignore b/.gitignore
@@ -48,6 +52,30 @@ index 0000000..b268996
 +.vscode
 +
 +ci/variables.yml
+diff --git a/Directory.Build.targets b/Directory.Build.targets
+new file mode 100644
+index 0000000..0802144
+--- /dev/null
++++ b/Directory.Build.targets
+@@ -0,0 +1,5 @@
++<Project>
++    <Target Name="VSTestIfTestProject">
++        <CallTarget Targets="VSTest" Condition="'$(IsTestProject)' == 'true'" />
++    </Target>
++</Project>
+\ No newline at end of file
+diff --git a/after.PalTracker.sln.targets b/after.PalTracker.sln.targets
+new file mode 100644
+index 0000000..81ea6b3
+--- /dev/null
++++ b/after.PalTracker.sln.targets
+@@ -0,0 +1,5 @@
++<Project>
++    <Target Name="VSTest">
++        <MSBuild Projects="@(ProjectReference)" Targets="VSTestIfTestProject" />
++    </Target>
++</Project>
+\ No newline at end of file
 diff --git a/grh-config.json b/grh-config.json
 new file mode 100644
 index 0000000..14b1539
